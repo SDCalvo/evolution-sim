@@ -106,6 +106,11 @@ export interface FoodEntity extends Entity {
 }
 
 /**
+ * Union type for all consumable entities (food + carrion)
+ */
+export type ConsumableEntity = FoodEntity | Carrion;
+
+/**
  * Environmental feature entity
  */
 export interface EnvironmentalEntity extends Entity {
@@ -162,7 +167,7 @@ export interface Carrion extends Entity {
  */
 export interface SpatialCell {
   creatures: Creature[];
-  food: FoodEntity[];
+  food: ConsumableEntity[]; // Now includes both food and carrion!
   environmental: EnvironmentalEntity[];
 }
 
@@ -180,7 +185,7 @@ export interface SpatialGrid {
  * Query results for entity searches
  */
 export interface EntityQuery {
-  food: FoodEntity[];
+  food: ConsumableEntity[]; // Now includes both food and carrion!
   creatures: Creature[];
   environmental: EnvironmentalEntity[];
   distance: number; // Distance to nearest entity
@@ -281,7 +286,7 @@ export interface CombatInteraction {
  */
 export interface FeedingInteraction {
   creature: Creature;
-  food: FoodEntity;
+  food: ConsumableEntity; // Now supports both food and carrion!
   feedingPower: number; // 0.0-1.0 feeding strength
 
   // Results

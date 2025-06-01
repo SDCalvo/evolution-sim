@@ -229,7 +229,9 @@ if (nearbyFood.food.length > 0) {
   const initialEnergy = creature1.physics.energy;
 
   console.log(`Testing feeding on ${food.type}`);
-  console.log(`   Food energy: ${food.energy}`);
+  // Handle different energy property names for different entity types
+  const foodEnergy = "energy" in food ? food.energy : food.currentEnergyValue;
+  console.log(`   Food energy: ${foodEnergy}`);
   console.log(`   Creature energy before: ${initialEnergy}`);
   console.log(`   Plant preference: ${creature1.genetics.plantPreference}`);
 

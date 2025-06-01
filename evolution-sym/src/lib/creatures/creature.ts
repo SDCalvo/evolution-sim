@@ -25,7 +25,11 @@ import {
   CreatureJSON,
 } from "./creatureTypes";
 import { Environment } from "../environment/environment";
-import { SpatialQuery, EntityType } from "../environment/environmentTypes";
+import {
+  SpatialQuery,
+  EntityType,
+  Carrion,
+} from "../environment/environmentTypes";
 
 export class Creature {
   // Core composition - HAS-A relationships
@@ -115,21 +119,27 @@ export class Creature {
    */
   private sense(environment?: Environment): number[] {
     if (!environment) {
-      // Fallback to dummy data if no environment
-      return Array(12).fill(0.5);
+      // Fallback to dummy data if no environment - NOW 14 SENSORS!
+      return Array(14).fill(0.5);
     }
 
-    // Query nearby entities using spatial grid
+    // Query nearby entities using spatial grid - INCLUDING CARRION! 🦴
     const searchRadius = this.genetics.visionRange * 100; // Convert genetic trait to pixels
     const spatialQuery: SpatialQuery = {
       position: this.physics.position,
       radius: searchRadius,
+      entityTypes: [
+        EntityType.PlantFood,
+        EntityType.SmallPrey,
+        EntityType.MushroomFood,
+        EntityType.Carrion, // 🦴 NOW DETECTING CARRION!
+      ],
       sortByDistance: true,
       excludeCreature: this,
     };
     const nearbyEntities = environment.queryNearbyEntities(spatialQuery);
 
-    // Initialize sensors
+    // Initialize sensors - NOW WITH CARRION DETECTION! 🦴
     const sensors: CreatureSensors = {
       // Internal state sensors (always available)
       energyLevel: this.physics.energy / 100, // Normalize to 0-1
@@ -139,6 +149,8 @@ export class Creature {
       // Environmental sensors (require queries)
       foodDistance: 1.0, // Default: no food detected
       foodType: 0.5, // Default: neutral
+      carrionDistance: 1.0, // Default: no carrion detected 🦴 NEW!
+      carrionFreshness: 0.0, // Default: no carrion freshness data 🦴 NEW!
       predatorDistance: 1.0, // Default: no threats
       preyDistance: 1.0, // Default: no prey
       populationDensity: 0.0, // Will calculate from nearby creatures
@@ -150,21 +162,43 @@ export class Creature {
       visionBack: 1.0,
     };
 
-    // Analyze nearby food
+    // Analyze nearby food AND carrion separately! 🦴
     let closestFoodDistance = Infinity;
     let closestFoodType = 0.5; // Default neutral
+    let closestCarrionDistance = Infinity;
+    let closestCarrionFreshness = 0.0; // Default stale
+
     for (const entity of nearbyEntities.food) {
       const distance = this.calculateDistance(
         this.physics.position,
         entity.position
       );
-      if (distance < closestFoodDistance) {
-        closestFoodDistance = distance;
-        // Food type based on diet preference
-        if (entity.type === EntityType.PlantFood) {
-          closestFoodType = this.genetics.plantPreference;
-        } else {
-          closestFoodType = this.genetics.meatPreference;
+
+      // Check if this is carrion (needs special handling)
+      if ("scent" in entity && "currentDecayStage" in entity) {
+        // 🦴 CARRION DETECTION - Scent-based discovery!
+        const carrion = entity as Carrion;
+        if (
+          carrion.scent !== undefined &&
+          carrion.currentDecayStage !== undefined
+        ) {
+          // Scent affects detection range - fresh carrion detected further away!
+          const scentRadius = searchRadius * carrion.scent;
+          if (distance <= scentRadius && distance < closestCarrionDistance) {
+            closestCarrionDistance = distance;
+            closestCarrionFreshness = 1.0 - carrion.currentDecayStage; // Fresh = 1.0, rotted = 0.0
+          }
+        }
+      } else {
+        // Regular food detection
+        if (distance < closestFoodDistance) {
+          closestFoodDistance = distance;
+          // Food type based on diet preference
+          if (entity.type === EntityType.PlantFood) {
+            closestFoodType = this.genetics.plantPreference;
+          } else {
+            closestFoodType = this.genetics.meatPreference;
+          }
         }
       }
     }
@@ -173,6 +207,15 @@ export class Creature {
     if (closestFoodDistance < Infinity) {
       sensors.foodDistance = Math.min(closestFoodDistance / searchRadius, 1.0);
       sensors.foodType = closestFoodType;
+    }
+
+    // 🦴 Convert carrion distance and freshness to sensor values
+    if (closestCarrionDistance < Infinity) {
+      sensors.carrionDistance = Math.min(
+        closestCarrionDistance / searchRadius,
+        1.0
+      );
+      sensors.carrionFreshness = closestCarrionFreshness;
     }
 
     // Analyze nearby creatures for predators/prey/population
@@ -245,10 +288,12 @@ export class Creature {
       visionDistance
     ); // Back
 
-    // Convert to array for neural network
+    // Convert to array for neural network - NOW 14 INPUTS FOR CARRION! 🦴
     return [
       sensors.foodDistance,
       sensors.foodType,
+      sensors.carrionDistance, // 🦴 NEW: Distance to carrion
+      sensors.carrionFreshness, // 🦴 NEW: How fresh the carrion is
       sensors.predatorDistance,
       sensors.preyDistance,
       sensors.energyLevel,
@@ -381,12 +426,12 @@ export class Creature {
    * Placeholder action methods (to be implemented with environment)
    */
   /**
-   * Attempt to feed on nearby food - now with real environment interaction!
+   * Attempt to feed on nearby food - NOW INCLUDES CARRION! 🦴
    */
   private attemptEating(environment?: Environment): void {
     if (!environment) return;
 
-    // Query for nearby food
+    // Query for nearby food AND carrion! 🦴
     const query: SpatialQuery = {
       position: this.physics.position,
       radius: this.physics.collisionRadius + 50, // Search radius based on size
@@ -394,6 +439,7 @@ export class Creature {
         EntityType.PlantFood,
         EntityType.SmallPrey,
         EntityType.MushroomFood,
+        EntityType.Carrion, // 🦴 SCAVENGER FEEDING!
       ],
       maxResults: 1,
       sortByDistance: true,
@@ -403,7 +449,20 @@ export class Creature {
 
     if (results.food.length > 0) {
       const nearestFood = results.food[0];
-      const feedingPower = 0.8; // High feeding efficiency
+
+      // 🦴 Special handling for carrion vs regular food
+      let feedingPower = 0.8; // High feeding efficiency
+
+      // Scavengers (high meat preference) are better at eating carrion
+      if (nearestFood.type === EntityType.Carrion) {
+        feedingPower = this.genetics.meatPreference * 0.9; // Meat lovers = better scavengers
+        console.log(
+          `🦴 ${this.id.substring(
+            0,
+            8
+          )} attempting to scavenge carrion (power: ${feedingPower.toFixed(2)})`
+        );
+      }
 
       // Process feeding through environment
       environment.processFeeding(this, nearestFood, feedingPower);

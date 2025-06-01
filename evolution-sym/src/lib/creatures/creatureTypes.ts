@@ -434,9 +434,11 @@ export interface Vector2 {
  * Based on environmental awareness + spatial vision rays
  */
 export interface CreatureSensors {
-  // Environmental awareness (8 sensors)
+  // Environmental awareness (10 sensors) - EXPANDED FOR CARRION!
   foodDistance: number; // 0.0-1.0 (closest food)
   foodType: number; // 0=plant, 1=meat
+  carrionDistance: number; // 0.0-1.0 (closest carrion) 🦴 NEW!
+  carrionFreshness: number; // 0.0-1.0 (fresh to rotting) 🦴 NEW!
   predatorDistance: number; // 0.0-1.0 (closest threat)
   preyDistance: number; // 0.0-1.0 (closest target)
   energyLevel: number; // 0.0-1.0 (internal state)

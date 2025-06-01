@@ -13,6 +13,7 @@ import {
   Entity,
   EntityType,
   FoodEntity,
+  ConsumableEntity,
   EnvironmentalEntity,
   SpatialGrid,
   SpatialQuery,
@@ -318,7 +319,7 @@ export class Environment {
    */
   public processFeeding(
     creature: Creature,
-    food: FoodEntity,
+    food: ConsumableEntity,
     feedingPower: number
   ): FeedingInteraction {
     const distance = this.calculateDistance(
@@ -339,8 +340,11 @@ export class Environment {
       };
     }
 
-    // Calculate energy gain based on diet preferences
+    // Calculate energy gain based on diet preferences - INCLUDING CARRION! 🦴
     let energyMultiplier = 1.0;
+    let actualEnergyValue =
+      "energy" in food ? food.energy : food.currentEnergyValue;
+
     if (food.type === EntityType.PlantFood) {
       energyMultiplier = creature.genetics.plantPreference;
     } else if (
@@ -348,9 +352,24 @@ export class Environment {
       food.type === EntityType.SmallPrey
     ) {
       energyMultiplier = creature.genetics.meatPreference;
+    } else if (food.type === EntityType.Carrion) {
+      // 🦴 CARRION FEEDING - Special scavenger mechanics!
+      energyMultiplier = creature.genetics.meatPreference; // Meat eaters = better scavengers
+
+      // Access carrion-specific energy (decays over time)
+      const carrion = food as Carrion;
+      if (carrion.currentEnergyValue !== undefined) {
+        actualEnergyValue = carrion.currentEnergyValue;
+      }
+
+      console.log(
+        `🦴 Scavenging! Energy: ${actualEnergyValue.toFixed(
+          1
+        )}, Multiplier: ${energyMultiplier.toFixed(2)}`
+      );
     }
 
-    const energyGain = food.energy * feedingPower * energyMultiplier;
+    const energyGain = actualEnergyValue * feedingPower * energyMultiplier;
     creature.physics.energy = Math.min(
       100,
       creature.physics.energy + energyGain
@@ -359,9 +378,17 @@ export class Environment {
     // Update creature statistics
     creature.stats.foodEaten++;
 
-    // Remove consumed food
+    // Remove consumed food or carrion 🦴
     this.removeFromSpatialGrid(food);
-    this.food.delete(food.id);
+
+    if (food.type === EntityType.Carrion) {
+      // Carrion is stored in entities map
+      this.entities.delete(food.id);
+      console.log(`🦴 Carrion consumed and removed: ${food.id}`);
+    } else {
+      // Regular food is stored in food map
+      this.food.delete(food.id);
+    }
 
     return {
       creature,
@@ -561,7 +588,8 @@ export class Environment {
     } else if (
       entity.type === EntityType.PlantFood ||
       entity.type === EntityType.MushroomFood ||
-      entity.type === EntityType.SmallPrey
+      entity.type === EntityType.SmallPrey ||
+      entity.type === EntityType.Carrion // 🦴 Carrion counts as food!
     ) {
       cell.food.push(entity as FoodEntity);
     } else {
@@ -583,7 +611,8 @@ export class Environment {
     } else if (
       entity.type === EntityType.PlantFood ||
       entity.type === EntityType.MushroomFood ||
-      entity.type === EntityType.SmallPrey
+      entity.type === EntityType.SmallPrey ||
+      entity.type === EntityType.Carrion // 🦴 Carrion removal from food!
     ) {
       const index = cell.food.indexOf(entity as FoodEntity);
       if (index > -1) cell.food.splice(index, 1);

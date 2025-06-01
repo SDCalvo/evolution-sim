@@ -49,15 +49,15 @@ export class BootstrapBrainFactory {
    * Hardcoded with just enough survival instinct to reproduce once
    */
   public static createFounderBrain(genetics: CreatureGenetics): NeuralNetwork {
-    // Network architecture: 12 sensors → 8 hidden → 5 actions
-    // Sensors: food dist, food type, predator, prey, energy, health, age, population, vision rays (4)
-    const brain = new NeuralNetwork([12, 8, 5]);
+    // Network architecture: 14 sensors → 8 hidden → 5 actions
+    // Sensors: food dist, food type, carrion dist, carrion freshness, predator, prey, energy, health, age, population, vision rays (4)
+    const brain = new NeuralNetwork([14, 8, 5]);
 
     // RULE 1: Survival Priority - Energy Management
     // When energy is low (< 0.3) and food is nearby (< 0.5), prioritize eating
     this.encodeRule(
       brain,
-      [4, 0], // energy sensor + food distance sensor
+      [6, 0], // energy sensor + food distance sensor (updated indices!)
       [2], // eating action
       [-0.7, -0.6], // low energy + close food
       0.8 // strong eating response
@@ -67,7 +67,7 @@ export class BootstrapBrainFactory {
     // When energy is high (> 0.6) and mature (age > 0.4), attempt reproduction
     this.encodeRule(
       brain,
-      [4, 6], // energy sensor + age sensor
+      [6, 8], // energy sensor + age sensor (updated indices!)
       [4], // reproduction action
       [0.6, 0.4], // high energy + mature age
       0.7 // strong reproduction response
@@ -77,17 +77,27 @@ export class BootstrapBrainFactory {
     // When predator is very close (< 0.2), flee in opposite direction
     this.encodeRule(
       brain,
-      [2], // predator distance sensor
+      [4], // predator distance sensor (updated index!)
       [0, 1], // movement actions
       [-0.8], // very close predator (inverted - close = negative)
       0.9 // very strong flee response
     );
 
-    // RULE 4: Basic Exploration - Default Behavior
+    // RULE 4: 🦴 CARRION SCAVENGING - New Survival Strategy!
+    // When energy is low and fresh carrion is nearby, prioritize scavenging
+    this.encodeRule(
+      brain,
+      [6, 2, 3], // energy sensor + carrion distance + carrion freshness
+      [2], // eating action
+      [-0.6, -0.5, 0.7], // low energy + close carrion + fresh carrion
+      0.75 // strong scavenging response
+    );
+
+    // RULE 5: Basic Exploration - Default Behavior
     // When nothing urgent, slow exploration based on curiosity
     this.encodeExploration(brain, genetics.curiosity);
 
-    // RULE 5: Food Seeking - Basic Foraging
+    // RULE 6: Food Seeking - Basic Foraging
     // Move toward food when moderately hungry
     this.encodeFoodSeeking(brain, genetics);
 

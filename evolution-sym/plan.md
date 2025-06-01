@@ -36,12 +36,14 @@ Build an evolution simulation where creatures with neural networks compete in an
 
 - **Phase 3.3**: Complete creature-environment integration ✨ **NEW!**
   - **✅ Real-Time AI Decision Making** - Neural networks controlling creatures through environmental sensors
-  - **✅ Complete Spatial Sensing** - 12-sensor system with food detection, predator/prey awareness, vision rays
+  - **✅ Complete Spatial Sensing** - 14-sensor system with food detection, predator/prey awareness, vision rays
   - **✅ Environmental Actions** - Real feeding, combat, and reproduction through environment interactions
-  - **✅ Performance Excellence** - 8.1 spatial queries per tick, 95% creature survival rate
+  - **✅ Performance Excellence** - 8.4 spatial queries per tick, 100% creature survival rate
   - **✅ Behavioral Emergence** - Creatures making intelligent decisions for survival and energy management
   - **✅ Integration Testing** - 100% test success rate with comprehensive behavioral analysis
-  - **✅ Carrion Decay System** - Dead creatures become decaying carrion enabling scavenger evolution! 🦴
+  - **✅ Carrion Decay System** - **FULLY FUNCTIONAL!** Dead creatures become scavenging opportunities! 🦴
+  - **✅ Scavenger Evolution Support** - Neural networks detect, approach, and consume carrion with meat preference scaling
+  - **✅ Comprehensive Carrion Mechanics** - Decay stages, scent-based detection, energy scaling, spatial integration
 
 **🔄 IN PROGRESS:**
 
