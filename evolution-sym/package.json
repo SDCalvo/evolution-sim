@@ -11,6 +11,7 @@
     "test:neuron": "tsx tests/neuron.test.ts",
     "test:layer": "tsx tests/layer.test.ts",
     "test:network": "tsx tests/network.test.ts",
+    "test:parental-care": "tsx tests/test-simple-parental-care.ts",
     "test:all": "tsx tests/*.test.ts"
   },
   "dependencies": {
