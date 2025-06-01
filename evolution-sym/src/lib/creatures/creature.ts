@@ -431,6 +431,10 @@ export class Creature {
     // Apply mutation
     GeneticsHelper.mutate(childGenetics);
 
+    // Calculate spawn position near parents if not specified
+    const childPosition =
+      position || this.calculateOffspringPosition(parent1, parent2);
+
     // Create child with bootstrap brain appropriate for its generation
     const childGeneration =
       Math.max(parent1.generation, parent2.generation) + 1;
@@ -438,7 +442,7 @@ export class Creature {
       childGeneration,
       childGenetics,
       [parent1, parent2],
-      position
+      childPosition
     );
 
     // Update parent statistics
@@ -446,6 +450,33 @@ export class Creature {
     parent2.stats.offspring++;
 
     return child;
+  }
+
+  /**
+   * Calculate spawn position for offspring near parents
+   */
+  private static calculateOffspringPosition(
+    parent1: Creature,
+    parent2: Creature
+  ): Vector2 {
+    // Find midpoint between parents
+    const midX = (parent1.physics.position.x + parent2.physics.position.x) / 2;
+    const midY = (parent1.physics.position.y + parent2.physics.position.y) / 2;
+
+    // Add small random offset (within 30 pixels of midpoint)
+    const offsetRange = 30;
+    const offsetX = (Math.random() - 0.5) * offsetRange;
+    const offsetY = (Math.random() - 0.5) * offsetRange;
+
+    // Calculate final position
+    let childX = midX + offsetX;
+    let childY = midY + offsetY;
+
+    // Clamp to world boundaries (50px margin from edges)
+    childX = Math.max(50, Math.min(950, childX));
+    childY = Math.max(50, Math.min(950, childY));
+
+    return { x: childX, y: childY };
   }
 
   /**
