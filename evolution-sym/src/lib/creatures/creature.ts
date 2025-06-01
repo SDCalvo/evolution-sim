@@ -339,8 +339,14 @@ export class Creature {
    * Initialize physics state
    */
   private initializePhysics(position?: Vector2): CreaturePhysics {
+    // Random spawn position if none provided (50px margin from edges)
+    const defaultPosition = position || {
+      x: 50 + Math.random() * 900, // Random X: 50-950 in 1000px world
+      y: 50 + Math.random() * 900, // Random Y: 50-950 in 1000px world
+    };
+
     return {
-      position: position || { x: 500, y: 500 }, // Center of 1000x1000 world
+      position: defaultPosition,
       velocity: { x: 0, y: 0 },
       rotation: Math.random() * Math.PI * 2, // Random initial direction
       energy: 100, // Start with full energy
@@ -375,8 +381,30 @@ export class Creature {
    * Update fitness score and other stats
    */
   private updateStats(): void {
-    // Simple fitness calculation (survival time + reproduction success)
-    this.stats.fitness = this.stats.ticksAlive + this.stats.offspring * 100;
+    // Sync current physics state to stats
+    this.stats.energy = this.physics.energy;
+    this.stats.health = this.physics.health;
+    this.stats.age = this.physics.age;
+
+    // ticksAlive is updated in updateInternalState()
+    // foodEaten is updated in attemptEating()
+    // distanceTraveled is updated in updatePhysics()
+    // attacksReceived is updated when taking damage (TODO: implement)
+    // attacksGiven is updated in attemptAttack()
+    // reproductionAttempts is updated in attemptReproduction()
+    // offspring is updated in createOffspring()
+
+    // Calculate comprehensive fitness score
+    const survivalFitness = this.stats.ticksAlive; // Reward survival time
+    const reproductionFitness = this.stats.offspring * 100; // Reward reproduction success
+    const efficiencyFitness = this.stats.distanceTraveled * 0.1; // Reward exploration
+    const feedingFitness = this.stats.foodEaten * 5; // Reward successful feeding
+
+    this.stats.fitness =
+      survivalFitness +
+      reproductionFitness +
+      efficiencyFitness +
+      feedingFitness;
   }
 
   /**
