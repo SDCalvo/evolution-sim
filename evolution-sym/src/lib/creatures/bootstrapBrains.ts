@@ -49,8 +49,9 @@ export class BootstrapBrainFactory {
    * Hardcoded with just enough survival instinct to reproduce once
    */
   public static createFounderBrain(genetics: CreatureGenetics): NeuralNetwork {
-    // Network architecture: 8 sensors → 6 hidden → 5 actions
-    const brain = new NeuralNetwork([8, 6, 5]);
+    // Network architecture: 12 sensors → 8 hidden → 5 actions
+    // Sensors: food dist, food type, predator, prey, energy, health, age, population, vision rays (4)
+    const brain = new NeuralNetwork([12, 8, 5]);
 
     // RULE 1: Survival Priority - Energy Management
     // When energy is low (< 0.3) and food is nearby (< 0.5), prioritize eating
@@ -200,9 +201,13 @@ export class BootstrapBrainFactory {
     // Higher curiosity = more random movement when nothing urgent
     const explorationStrength = curiosity * 0.3;
 
-    // Connect population density sensor to movement (avoid crowds)
+    // Connect population density sensor (index 7 in 12-sensor system) to movement (avoid crowds)
     brain.setWeight(0, 7, 1, 0, -explorationStrength); // Move away from crowds
     brain.setWeight(0, 7, 1, 1, explorationStrength); // Random direction
+
+    // Use vision ray sensors for exploration too (indices 8-11)
+    brain.setWeight(0, 8, 1, 0, explorationStrength * 0.2); // Forward vision
+    brain.setWeight(0, 9, 1, 1, explorationStrength * 0.2); // Left vision
 
     // Add bias for gentle movement
     brain.setBias(1, 0, explorationStrength * 0.5);

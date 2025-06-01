@@ -1,36 +1,36 @@
 {
-  "name": "evolution-simulation",
+  "name": "evolution-sym",
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev --turbopack",
+    "dev": "next dev",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "test": "tsx tests/neuron.test.ts",
-    "test:neuron": "tsx tests/neuron.test.ts",
-    "test:layer": "tsx tests/layer.test.ts",
-    "test:network": "tsx tests/network.test.ts",
-    "test:parental-care": "tsx tests/test-simple-parental-care.ts",
+    "test": "tsx tests/test-neuron.ts",
+    "test:neuron": "tsx tests/test-neuron.ts",
+    "test:layer": "tsx tests/test-layer.ts",
+    "test:network": "tsx tests/test-network.ts",
+    "test:parental-care": "tsx tests/test-parental-care.ts",
     "test:bootstrap": "tsx tests/test-bootstrap-brains.ts",
-    "test:all": "tsx tests/*.test.ts"
+    "test:creature": "tsx tests/test-creature.ts",
+    "test:all": "npm run test:neuron && npm run test:layer && npm run test:network && npm run test:parental-care && npm run test:bootstrap && npm run test:creature"
   },
   "dependencies": {
-    "next": "15.3.3",
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "next": "14.0.3",
+    "react": "^18",
+    "react-dom": "^18"
   },
   "devDependencies": {
-    "@eslint/eslintrc": "^3",
-    "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
-    "@types/react": "^19",
-    "@types/react-dom": "^19",
-    "eslint": "^9",
-    "eslint-config-next": "15.3.3",
-    "tailwindcss": "^4",
-    "ts-node": "^10.9.2",
-    "tsx": "^4.19.4",
+    "@types/react": "^18",
+    "@types/react-dom": "^18",
+    "autoprefixer": "^10.0.1",
+    "eslint": "^8",
+    "eslint-config-next": "14.0.3",
+    "postcss": "^8",
+    "tailwindcss": "^3.3.0",
+    "tsx": "^4.6.2",
     "typescript": "^5"
   }
 }

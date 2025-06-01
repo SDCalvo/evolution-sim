@@ -42,7 +42,7 @@ console.log(`  - Description: ${strategy0.description}\n`);
 console.log("🧪 SURVIVAL SCENARIO TESTING:\n");
 
 console.log("Scenario 1: Low energy + nearby food");
-const scenario1 = [0.2, 0.0, 0.9, 0.5, 0.1, 0.8, 0.3, 0.4]; // [food_dist, food_type, predator_dist, prey_dist, energy, health, age, pop_density]
+const scenario1 = [0.2, 0.0, 0.9, 0.5, 0.1, 0.8, 0.3, 0.4, 0.7, 0.6, 0.5, 0.8]; // [food_dist, food_type, predator_dist, prey_dist, energy, health, age, pop_density, vision_forward, vision_left, vision_right, vision_back]
 const response1 = founderBrain.process(scenario1);
 console.log(
   `  Input: Low energy (${scenario1[4]}), close food (${scenario1[0]})`
@@ -63,7 +63,7 @@ console.log(
 );
 
 console.log("Scenario 2: High energy + mature age");
-const scenario2 = [0.8, 0.5, 0.9, 0.7, 0.8, 0.9, 0.7, 0.3]; // High energy, mature
+const scenario2 = [0.8, 0.5, 0.9, 0.7, 0.8, 0.9, 0.7, 0.3, 0.6, 0.7, 0.4, 0.9]; // High energy, mature
 const response2 = founderBrain.process(scenario2);
 console.log(
   `  Input: High energy (${scenario2[4]}), mature age (${scenario2[6]})`
@@ -84,7 +84,7 @@ console.log(
 );
 
 console.log("Scenario 3: Predator nearby");
-const scenario3 = [0.6, 0.5, 0.1, 0.8, 0.5, 0.7, 0.4, 0.2]; // Close predator
+const scenario3 = [0.6, 0.5, 0.1, 0.8, 0.5, 0.7, 0.4, 0.2, 0.5, 0.3, 0.8, 0.4]; // Close predator
 const response3 = founderBrain.process(scenario3);
 console.log(`  Input: Close predator (${scenario3[2]}), moderate energy`);
 console.log(
@@ -191,7 +191,7 @@ console.log(
 console.log("📊 COMPARISON: Random vs Bootstrap Brains\n");
 
 console.log("Random Brain (would cause population collapse):");
-const randomBrain = new NeuralNetwork([8, 6, 5]);
+const randomBrain = new NeuralNetwork([12, 8, 5]);
 const randomResponse = randomBrain.process(scenario1); // Same low energy scenario
 console.log(
   `  - Response to low energy + food: eat=${randomResponse[2].toFixed(3)}`

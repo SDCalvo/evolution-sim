@@ -3,6 +3,8 @@
  * This file defines the DNA of our digital creatures!
  */
 
+import { NetworkData } from "../neural/network";
+
 /**
  * The genetic blueprint of a creature - their "DNA"
  * These traits determine everything about how a creature looks and behaves
@@ -42,8 +44,15 @@ export interface CreatureStats {
   energy: number; // 0-100: Current energy level
   health: number; // 0-100: Current health
   age: number; // 0-lifespan: Current age in ticks
-  fitness: number; // 0+: Calculated survival fitness (food found, survival time, etc.)
   generation: number; // 0+: How many generations from original population
+  ticksAlive: number;
+  foodEaten: number;
+  distanceTraveled: number;
+  attacksReceived: number;
+  attacksGiven: number;
+  reproductionAttempts: number;
+  offspring: number;
+  fitness: number; // Calculated survival score
 }
 
 /**
@@ -410,4 +419,124 @@ export class CreatureColorSystem {
       l: parseInt(match[3]),
     };
   }
+}
+
+/**
+ * 2D Vector for positions and velocities
+ */
+export interface Vector2 {
+  x: number;
+  y: number;
+}
+
+/**
+ * Enhanced sensor system with 12 inputs for neural network
+ * Based on environmental awareness + spatial vision rays
+ */
+export interface CreatureSensors {
+  // Environmental awareness (8 sensors)
+  foodDistance: number; // 0.0-1.0 (closest food)
+  foodType: number; // 0=plant, 1=meat
+  predatorDistance: number; // 0.0-1.0 (closest threat)
+  preyDistance: number; // 0.0-1.0 (closest target)
+  energyLevel: number; // 0.0-1.0 (internal state)
+  healthLevel: number; // 0.0-1.0 (damage level)
+  ageLevel: number; // 0.0-1.0 (maturity progress)
+  populationDensity: number; // 0.0-1.0 (local crowding)
+
+  // Spatial vision rays (4 sensors)
+  visionForward: number; // 0.0-1.0 (obstacle distance ahead)
+  visionLeft: number; // 0.0-1.0 (obstacle distance left)
+  visionRight: number; // 0.0-1.0 (obstacle distance right)
+  visionBack: number; // 0.0-1.0 (obstacle distance behind)
+}
+
+/**
+ * Action outputs from neural network (5 actions)
+ */
+export interface CreatureActions {
+  moveX: number; // -1.0 to +1.0 (horizontal movement)
+  moveY: number; // -1.0 to +1.0 (vertical movement)
+  eat: number; // 0.0-1.0 (eating attempt strength)
+  attack: number; // 0.0-1.0 (attack/defend strength)
+  reproduce: number; // 0.0-1.0 (reproduction attempt)
+}
+
+/**
+ * Physical state of creature
+ */
+export interface CreaturePhysics {
+  position: Vector2;
+  velocity: Vector2;
+  rotation: number; // Radians for vision ray directions
+  energy: number; // 0-100 energy points
+  health: number; // 0-100 health points
+  age: number; // Ticks since birth
+  maxSpeed: number; // From genetics.speed trait
+  collisionRadius: number; // From genetics.size trait
+}
+
+/**
+ * Creature life state
+ */
+export enum CreatureState {
+  Alive = "alive",
+  Dead = "dead",
+  Reproducing = "reproducing",
+}
+
+/**
+ * HSL color representation for species visualization
+ */
+export interface HSLColor {
+  hue: number; // 0-360° (diet preference)
+  saturation: number; // 0-100% (aggression level)
+  lightness: number; // 0-100% (size)
+  alpha: number; // 0-1 (transparency)
+}
+
+/**
+ * Basic Environment interface (placeholder until full environment system)
+ */
+export interface Environment {
+  // Food system
+  food?: Array<{
+    id: string;
+    position: Vector2;
+    type: "plant" | "meat";
+    energy: number;
+  }>;
+
+  // Other creatures for interaction
+  creatures?: Array<{
+    id: string;
+    position: Vector2;
+    genetics: CreatureGenetics;
+    state: CreatureState;
+  }>;
+
+  // World boundaries
+  boundaries?: {
+    width: number;
+    height: number;
+  };
+
+  // Environmental conditions
+  conditions?: {
+    temperature: number;
+    resourceAbundance: number;
+    predationPressure: number;
+  };
+}
+
+/**
+ * JSON serialization types
+ */
+export interface CreatureJSON {
+  id: string;
+  generation: number;
+  genetics: CreatureGenetics;
+  physics: CreaturePhysics;
+  stats: CreatureStats;
+  brain: NetworkData;
 }
