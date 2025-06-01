@@ -85,6 +85,7 @@ export enum EntityType {
   // Special entities
   Creature = "creature",
   DeadCreature = "dead_creature",
+  Carrion = "carrion", // NEW: Dead creature remains
 }
 
 /**
@@ -122,6 +123,34 @@ export interface EnvironmentalEffect {
   speedModifier?: number; // Movement speed multiplier
   hidingBonus?: number; // Predator detection reduction
   reproductionBonus?: number; // Reproduction success boost
+}
+
+/**
+ * Carrion - decaying creature remains that scavengers can eat
+ */
+export interface Carrion extends Entity {
+  type: EntityType.Carrion;
+  subtype: "fresh" | "aged" | "rotting";
+
+  // Decay properties
+  originalCreatureId: string; // Which creature died
+  timeOfDeath: number; // When creature died (tick)
+  currentDecayStage: number; // 0-1: Fresh to completely decayed
+  maxDecayTime: number; // Ticks until completely gone
+
+  // Energy properties
+  originalEnergyValue: number; // Energy when creature died
+  currentEnergyValue: number; // Decreases as it decays
+
+  // Scavenger attraction
+  scent: number; // 0-1: How detectable it is (decreases over time)
+
+  // Visual properties
+  size: number; // Based on original creature size
+  decayVisual: {
+    opacity: number; // Becomes more transparent
+    color: string; // Changes from creature color to brown/gray
+  };
 }
 
 // ============================================================================

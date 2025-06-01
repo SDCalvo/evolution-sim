@@ -222,7 +222,7 @@ export class Simulation {
   }
 
   /**
-   * Remove dead creatures from environment
+   * Convert dead creatures to carrion (instead of immediate removal)
    */
   private cleanupDeadCreatures(): void {
     const creatures = this.environment.getCreatures();
@@ -231,6 +231,7 @@ export class Simulation {
     );
 
     for (const deadCreature of deadCreatures) {
+      // removeCreature now converts dead creatures to carrion automatically
       this.environment.removeCreature(deadCreature.id);
     }
   }

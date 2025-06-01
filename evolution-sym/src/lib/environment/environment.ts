@@ -23,6 +23,7 @@ import {
   CombatInteraction,
   FeedingInteraction,
   PRESET_BIOMES,
+  Carrion,
 } from "./environmentTypes";
 
 export class Environment {
@@ -35,6 +36,7 @@ export class Environment {
   private creatures: Map<string, Creature> = new Map();
   private food: Map<string, FoodEntity> = new Map();
   private environmental: Map<string, EnvironmentalEntity> = new Map();
+  private entities: Map<string, Entity> = new Map();
 
   // Spatial partitioning for efficient queries
   private spatialGrid: SpatialGrid;
@@ -74,7 +76,10 @@ export class Environment {
     // 1. Update moving entities (prey food)
     this.updateMovingEntities();
 
-    // 2. Process creature actions and interactions
+    // 2. Update carrion decay
+    this.updateCarrion();
+
+    // 3. Process creature actions and interactions
     this.processCreatureInteractions();
 
     // 3. Spawn new entities based on biome characteristics
@@ -108,8 +113,13 @@ export class Environment {
     const creature = this.creatures.get(creatureId);
     if (!creature) return false;
 
-    this.removeFromSpatialGrid(creature);
+    // Convert dead creature to carrion instead of just removing it
+    if (creature.state === CreatureState.Dead) {
+      this.createCarrionFromCreature(creature);
+    }
+
     this.creatures.delete(creatureId);
+    this.removeFromSpatialGrid(creature);
     return true;
   }
 
@@ -738,5 +748,94 @@ export class Environment {
     // Reset per-tick counters
     this.stats.spatialQueries = 0;
     this.stats.collisionChecks = 0;
+  }
+
+  /**
+   * Create carrion when a creature dies
+   */
+  private createCarrionFromCreature(creature: Creature): void {
+    const carrion: Carrion = {
+      id: `carrion_${creature.id}_${Date.now()}`,
+      type: EntityType.Carrion,
+      subtype: "fresh",
+      position: { ...creature.physics.position },
+      size: creature.physics.collisionRadius,
+      isActive: true,
+
+      // Decay properties
+      originalCreatureId: creature.id,
+      timeOfDeath: this.tickCount,
+      currentDecayStage: 0,
+      maxDecayTime: 200 + Math.random() * 300, // 200-500 ticks to fully decay
+
+      // Energy properties - carrion starts with remaining creature energy
+      originalEnergyValue: creature.stats.energy || 20,
+      currentEnergyValue: creature.stats.energy || 20,
+
+      // Scavenger attraction
+      scent: 1.0, // Fresh carrion has strong scent
+
+      // Visual properties
+      decayVisual: {
+        opacity: 0.9, // Slightly faded
+        color: creature.getHSLColor().hue + "deg, 30%, 40%", // Darker, less saturated
+      },
+    };
+
+    this.entities.set(carrion.id, carrion);
+    this.addToSpatialGrid(carrion);
+
+    console.log(
+      `🦴 Carrion created from ${creature.id} at (${carrion.position.x.toFixed(
+        0
+      )}, ${carrion.position.y.toFixed(0)})`
+    );
+  }
+
+  /**
+   * Update all carrion - decay over time
+   */
+  private updateCarrion(): void {
+    const carrion = Array.from(this.entities.values()).filter(
+      (e) => e.type === EntityType.Carrion
+    ) as Carrion[];
+
+    for (const c of carrion) {
+      this.processCarrionDecay(c);
+    }
+  }
+
+  /**
+   * Process decay for a single carrion
+   */
+  private processCarrionDecay(carrion: Carrion): void {
+    const ticksSinceDeath = this.tickCount - carrion.timeOfDeath;
+    carrion.currentDecayStage = ticksSinceDeath / carrion.maxDecayTime;
+
+    // Update decay properties
+    if (carrion.currentDecayStage < 0.3) {
+      carrion.subtype = "fresh";
+      carrion.scent = 1.0 - carrion.currentDecayStage * 0.5; // Strong scent
+    } else if (carrion.currentDecayStage < 0.7) {
+      carrion.subtype = "aged";
+      carrion.scent = 0.8 - carrion.currentDecayStage * 0.3; // Moderate scent
+    } else {
+      carrion.subtype = "rotting";
+      carrion.scent = 0.3 - carrion.currentDecayStage * 0.2; // Weak scent
+    }
+
+    // Reduce energy value as it decays
+    carrion.currentEnergyValue =
+      carrion.originalEnergyValue * (1 - carrion.currentDecayStage * 0.8);
+
+    // Update visual decay
+    carrion.decayVisual.opacity = 0.9 - carrion.currentDecayStage * 0.7; // Becomes transparent
+
+    // Remove completely decayed carrion
+    if (carrion.currentDecayStage >= 1.0) {
+      this.entities.delete(carrion.id);
+      this.removeFromSpatialGrid(carrion);
+      console.log(`🪦 Carrion ${carrion.id} fully decomposed`);
+    }
   }
 }

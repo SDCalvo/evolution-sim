@@ -41,6 +41,7 @@ Build an evolution simulation where creatures with neural networks compete in an
   - **✅ Performance Excellence** - 8.1 spatial queries per tick, 95% creature survival rate
   - **✅ Behavioral Emergence** - Creatures making intelligent decisions for survival and energy management
   - **✅ Integration Testing** - 100% test success rate with comprehensive behavioral analysis
+  - **✅ Carrion Decay System** - Dead creatures become decaying carrion enabling scavenger evolution! 🦴
 
 **🔄 IN PROGRESS:**
 
