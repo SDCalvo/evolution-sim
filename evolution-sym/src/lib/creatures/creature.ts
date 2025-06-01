@@ -22,9 +22,10 @@ import {
   CreatureState,
   HSLColor,
   CreatureStats,
-  Environment,
   CreatureJSON,
 } from "./creatureTypes";
+import { Environment } from "../environment/environment";
+import { SpatialQuery, EntityType } from "../environment/environmentTypes";
 
 export class Creature {
   // Core composition - HAS-A relationships
@@ -110,28 +111,139 @@ export class Creature {
 
   /**
    * Generate 12-sensor input for neural network
+   * Real environmental sensing using spatial queries!
    */
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  private sense(_environment?: Environment): number[] {
-    // TODO: Implement environmental sensing
-    // For now, return normalized dummy data
+  private sense(environment?: Environment): number[] {
+    if (!environment) {
+      // Fallback to dummy data if no environment
+      return Array(12).fill(0.5);
+    }
+
+    // Query nearby entities using spatial grid
+    const searchRadius = this.genetics.visionRange * 100; // Convert genetic trait to pixels
+    const spatialQuery: SpatialQuery = {
+      position: this.physics.position,
+      radius: searchRadius,
+      sortByDistance: true,
+      excludeCreature: this,
+    };
+    const nearbyEntities = environment.queryNearbyEntities(spatialQuery);
+
+    // Initialize sensors
     const sensors: CreatureSensors = {
-      // Environmental awareness
-      foodDistance: Math.random(),
-      foodType: Math.random(),
-      predatorDistance: Math.random(),
-      preyDistance: Math.random(),
+      // Internal state sensors (always available)
       energyLevel: this.physics.energy / 100, // Normalize to 0-1
       healthLevel: this.physics.health / 100, // Normalize to 0-1
-      ageLevel: Math.min(this.physics.age / 1000, 1), // Normalize to 0-1
-      populationDensity: Math.random(),
+      ageLevel: Math.min(this.physics.age / this.genetics.lifespan, 1), // Normalize by lifespan
 
-      // Vision rays (will implement with actual ray casting)
-      visionForward: Math.random(),
-      visionLeft: Math.random(),
-      visionRight: Math.random(),
-      visionBack: Math.random(),
+      // Environmental sensors (require queries)
+      foodDistance: 1.0, // Default: no food detected
+      foodType: 0.5, // Default: neutral
+      predatorDistance: 1.0, // Default: no threats
+      preyDistance: 1.0, // Default: no prey
+      populationDensity: 0.0, // Will calculate from nearby creatures
+
+      // Vision rays (spatial awareness in 4 directions)
+      visionForward: 1.0, // Default: clear vision
+      visionLeft: 1.0,
+      visionRight: 1.0,
+      visionBack: 1.0,
     };
+
+    // Analyze nearby food
+    let closestFoodDistance = Infinity;
+    let closestFoodType = 0.5; // Default neutral
+    for (const entity of nearbyEntities.food) {
+      const distance = this.calculateDistance(
+        this.physics.position,
+        entity.position
+      );
+      if (distance < closestFoodDistance) {
+        closestFoodDistance = distance;
+        // Food type based on diet preference
+        if (entity.type === EntityType.PlantFood) {
+          closestFoodType = this.genetics.plantPreference;
+        } else {
+          closestFoodType = this.genetics.meatPreference;
+        }
+      }
+    }
+
+    // Convert food distance to 0-1 sensor value (0=very close, 1=far/none)
+    if (closestFoodDistance < Infinity) {
+      sensors.foodDistance = Math.min(closestFoodDistance / searchRadius, 1.0);
+      sensors.foodType = closestFoodType;
+    }
+
+    // Analyze nearby creatures for predators/prey/population
+    let predatorCount = 0;
+    let preyCount = 0;
+    let closestPredatorDistance = Infinity;
+    let closestPreyDistance = Infinity;
+
+    for (const creature of nearbyEntities.creatures) {
+      if (creature.id === this.id) continue; // Skip self
+
+      const distance = this.calculateDistance(
+        this.physics.position,
+        creature.physics.position
+      );
+      sensors.populationDensity += 0.1; // Each nearby creature increases density
+
+      // Determine if predator or prey based on size and aggression
+      const sizeDifference = creature.genetics.size - this.genetics.size;
+      const aggressionDifference =
+        creature.genetics.aggression - this.genetics.aggression;
+
+      const threatScore = sizeDifference + aggressionDifference;
+
+      if (threatScore > 0.3) {
+        // Larger, more aggressive = potential predator
+        predatorCount++;
+        if (distance < closestPredatorDistance) {
+          closestPredatorDistance = distance;
+        }
+      } else if (threatScore < -0.3) {
+        // Smaller, less aggressive = potential prey
+        preyCount++;
+        if (distance < closestPreyDistance) {
+          closestPreyDistance = distance;
+        }
+      }
+    }
+
+    // Set predator/prey distances (0=very close, 1=far/none)
+    if (predatorCount > 0) {
+      sensors.predatorDistance = Math.min(
+        closestPredatorDistance / searchRadius,
+        1.0
+      );
+    }
+    if (preyCount > 0) {
+      sensors.preyDistance = Math.min(closestPreyDistance / searchRadius, 1.0);
+    }
+
+    // Clamp population density to 0-1
+    sensors.populationDensity = Math.min(sensors.populationDensity, 1.0);
+
+    // Vision rays: Check for obstacles in 4 directions
+    const visionDistance = this.genetics.visionRange * 50; // Half search radius for vision
+    sensors.visionForward = this.castVisionRay(environment, 0, visionDistance); // Forward
+    sensors.visionLeft = this.castVisionRay(
+      environment,
+      -Math.PI / 2,
+      visionDistance
+    ); // Left
+    sensors.visionRight = this.castVisionRay(
+      environment,
+      Math.PI / 2,
+      visionDistance
+    ); // Right
+    sensors.visionBack = this.castVisionRay(
+      environment,
+      Math.PI,
+      visionDistance
+    ); // Back
 
     // Convert to array for neural network
     return [
@@ -268,25 +380,111 @@ export class Creature {
   /**
    * Placeholder action methods (to be implemented with environment)
    */
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  private attemptEating(_environment?: Environment): void {
-    // TODO: Implement when environment is ready
-    // Placeholder: small energy gain from random feeding
-    this.physics.energy = Math.min(100, this.physics.energy + 1);
-    this.stats.foodEaten++;
+  /**
+   * Attempt to feed on nearby food - now with real environment interaction!
+   */
+  private attemptEating(environment?: Environment): void {
+    if (!environment) return;
+
+    // Query for nearby food
+    const query: SpatialQuery = {
+      position: this.physics.position,
+      radius: this.physics.collisionRadius + 50, // Search radius based on size
+      entityTypes: [
+        EntityType.PlantFood,
+        EntityType.SmallPrey,
+        EntityType.MushroomFood,
+      ],
+      maxResults: 1,
+      sortByDistance: true,
+    };
+
+    const results = environment.queryNearbyEntities(query);
+
+    if (results.food.length > 0) {
+      const nearestFood = results.food[0];
+      const feedingPower = 0.8; // High feeding efficiency
+
+      // Process feeding through environment
+      environment.processFeeding(this, nearestFood, feedingPower);
+    }
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  private attemptAttack(_environment?: Environment): void {
-    // TODO: Implement when environment is ready
-    // Placeholder: track attack attempts
-    this.stats.attacksGiven++;
+  /**
+   * Attempt to attack nearby creatures - real predator-prey combat!
+   */
+  private attemptAttack(environment?: Environment): void {
+    if (!environment) return;
+
+    // Query for nearby creatures
+    const query: SpatialQuery = {
+      position: this.physics.position,
+      radius: this.physics.collisionRadius + 30, // Attack range
+      maxResults: 1,
+      sortByDistance: true,
+      excludeCreature: this, // Don't attack self
+    };
+
+    const results = environment.queryNearbyEntities(query);
+
+    if (results.creatures.length > 0) {
+      const target = results.creatures[0];
+      const attackPower = this.genetics.aggression; // Use aggression trait as attack power
+
+      // Process combat through environment
+      environment.processCombat(this, target, attackPower);
+    }
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  private attemptReproduction(_environment?: Environment): void {
-    // TODO: Implement when environment is ready
-    // Placeholder: track reproduction attempts
+  /**
+   * Attempt reproduction with nearby mate - real genetic crossover!
+   */
+  private attemptReproduction(environment?: Environment): void {
+    if (!environment) return;
+
+    // Query for nearby potential mates
+    const query: SpatialQuery = {
+      position: this.physics.position,
+      radius: this.physics.collisionRadius + 60, // Mating range
+      maxResults: 5, // Check multiple potential mates
+      sortByDistance: true,
+      excludeCreature: this,
+    };
+
+    const results = environment.queryNearbyEntities(query);
+
+    for (const potentialMate of results.creatures) {
+      // Check if suitable mate (same species, mature, has energy)
+      if (
+        this.isSameSpecies(potentialMate) &&
+        potentialMate.canReproduce() &&
+        potentialMate.physics.age >= potentialMate.genetics.maturityAge
+      ) {
+        // Create offspring at nearby location
+        const offspring = Creature.createOffspring(this, potentialMate);
+
+        // Add offspring to environment
+        environment.addCreature(offspring);
+
+        // Apply reproduction costs
+        const reproductionCost = this.genetics.reproductionCost;
+        this.physics.energy = Math.max(
+          0,
+          this.physics.energy - reproductionCost
+        );
+        potentialMate.physics.energy = Math.max(
+          0,
+          potentialMate.physics.energy - reproductionCost
+        );
+
+        // Set reproduction cooldown
+        this.reproductionCooldown = 100; // Ticks before can reproduce again
+        potentialMate.reproductionCooldown = 100;
+
+        break; // Only reproduce with first suitable mate found
+      }
+    }
+
     this.stats.reproductionAttempts++;
   }
 
@@ -513,5 +711,59 @@ export class Creature {
     creature.stats = data.stats;
     // Brain would need to be reconstructed
     return creature;
+  }
+
+  /**
+   * Calculate distance between two points
+   */
+  private calculateDistance(pos1: Vector2, pos2: Vector2): number {
+    const dx = pos1.x - pos2.x;
+    const dy = pos1.y - pos2.y;
+    return Math.sqrt(dx * dx + dy * dy);
+  }
+
+  /**
+   * Cast a vision ray in a direction to detect obstacles
+   * Returns 0.0-1.0 where 0=obstacle very close, 1=clear vision
+   */
+  private castVisionRay(
+    environment: Environment,
+    angleOffset: number,
+    maxDistance: number
+  ): number {
+    // Calculate ray direction from current rotation + offset
+    const rayAngle = this.physics.rotation + angleOffset;
+    const rayDirection = {
+      x: Math.cos(rayAngle),
+      y: Math.sin(rayAngle),
+    };
+
+    // Sample points along the ray
+    const sampleCount = 10; // Number of points to check along ray
+    for (let i = 1; i <= sampleCount; i++) {
+      const distance = (i / sampleCount) * maxDistance;
+      const samplePoint = {
+        x: this.physics.position.x + rayDirection.x * distance,
+        y: this.physics.position.y + rayDirection.y * distance,
+      };
+
+      // Query for obstacles at this point
+      const query: SpatialQuery = {
+        position: samplePoint,
+        radius: 20, // Small radius for obstacle detection
+        entityTypes: [EntityType.Obstacle], // Only check for obstacles
+        maxResults: 1,
+      };
+
+      const results = environment.queryNearbyEntities(query);
+
+      // If we hit an obstacle, return normalized distance
+      if (results.environmental.length > 0) {
+        return distance / maxDistance; // 0.0-1.0 normalized
+      }
+    }
+
+    // Clear vision - no obstacles detected
+    return 1.0;
   }
 }

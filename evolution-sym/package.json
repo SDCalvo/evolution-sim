@@ -7,14 +7,17 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "test": "tsx tests/test-neuron.ts",
-    "test:neuron": "tsx tests/test-neuron.ts",
-    "test:layer": "tsx tests/test-layer.ts",
-    "test:network": "tsx tests/test-network.ts",
-    "test:parental-care": "tsx tests/test-parental-care.ts",
-    "test:bootstrap": "tsx tests/test-bootstrap-brains.ts",
-    "test:creature": "tsx tests/test-creature.ts",
-    "test:all": "npm run test:neuron && npm run test:layer && npm run test:network && npm run test:parental-care && npm run test:bootstrap && npm run test:creature"
+    "test": "ts-node tests/neuron.test.ts",
+    "test:neuron": "ts-node tests/neuron.test.ts",
+    "test:layer": "ts-node tests/layer.test.ts",
+    "test:network": "ts-node tests/network.test.ts",
+    "test:parental-care": "ts-node tests/test-parental-care.ts",
+    "test:bootstrap": "ts-node tests/test-bootstrap-brains.ts",
+    "test:creature": "ts-node tests/test-creature.ts",
+    "test:environment": "ts-node tests/test-environment.ts",
+    "test:integration": "ts-node tests/test-integration.ts",
+    "demo": "ts-node tests/demo-evolution.ts",
+    "test:all": "npm run test:neuron && npm run test:layer && npm run test:network && npm run test:parental-care && npm run test:bootstrap && npm run test:creature && npm run test:environment && npm run test:integration"
   },
   "dependencies": {
     "next": "14.0.3",
@@ -30,6 +33,7 @@
     "eslint-config-next": "14.0.3",
     "postcss": "^8",
     "tailwindcss": "^3.3.0",
+    "ts-node": "^10.9.2",
     "tsx": "^4.6.2",
     "typescript": "^5"
   }

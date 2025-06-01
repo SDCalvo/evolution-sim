@@ -498,36 +498,8 @@ export interface HSLColor {
 /**
  * Basic Environment interface (placeholder until full environment system)
  */
-export interface Environment {
-  // Food system
-  food?: Array<{
-    id: string;
-    position: Vector2;
-    type: "plant" | "meat";
-    energy: number;
-  }>;
-
-  // Other creatures for interaction
-  creatures?: Array<{
-    id: string;
-    position: Vector2;
-    genetics: CreatureGenetics;
-    state: CreatureState;
-  }>;
-
-  // World boundaries
-  boundaries?: {
-    width: number;
-    height: number;
-  };
-
-  // Environmental conditions
-  conditions?: {
-    temperature: number;
-    resourceAbundance: number;
-    predationPressure: number;
-  };
-}
+// Environment interface moved to environment/environment.ts
+// Using the actual Environment class instead of placeholder
 
 /**
  * JSON serialization types

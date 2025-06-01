@@ -86,8 +86,15 @@ const stats: CreatureStats = {
   energy: 95, // Higher energy for K-strategy testing
   health: 90,
   age: 130, // Old enough for K-strategy maturity
-  fitness: 50,
   generation: 1,
+  ticksAlive: 130,
+  foodEaten: 10,
+  distanceTraveled: 500,
+  attacksReceived: 2,
+  attacksGiven: 1,
+  reproductionAttempts: 0,
+  offspring: 0,
+  fitness: 50,
 };
 
 console.log("🔬 REPRODUCTION COMPARISON:");

@@ -322,7 +322,5 @@ function runAllTests() {
   }
 }
 
-// Run tests if this file is executed directly
-if (require.main === module) {
-  runAllTests();
-}
+// Run tests when this file is executed directly
+runAllTests();
