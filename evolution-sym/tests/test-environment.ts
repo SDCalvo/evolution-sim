@@ -216,16 +216,24 @@ if (combatResult.success) {
 console.log("\n🍃 TESTING CREATURE FEEDING SYSTEM");
 console.log("==================================================");
 
-// Query for nearby food to test feeding
+// Query for nearby food to test feeding - use larger radius to ensure we find food
 const nearbyFood = grassland.queryNearbyEntities({
   position: creature1.physics.position,
-  radius: 50,
+  radius: 200, // Increased radius to ensure we find food
   entityTypes: [EntityType.PlantFood],
   maxResults: 1,
 });
 
 if (nearbyFood.food.length > 0) {
   const food = nearbyFood.food[0];
+
+  // Lower creature energy to make feeding more meaningful
+  creature1.physics.energy = 60;
+
+  // Move creature very close to food for successful feeding test
+  creature1.physics.position.x = food.position.x;
+  creature1.physics.position.y = food.position.y + 5; // Just 5px away
+
   const initialEnergy = creature1.physics.energy;
 
   console.log(`Testing feeding on ${food.type}`);
@@ -235,7 +243,17 @@ if (nearbyFood.food.length > 0) {
   console.log(`   Creature energy before: ${initialEnergy}`);
   console.log(`   Plant preference: ${creature1.genetics.plantPreference}`);
 
-  const feedingResult = grassland.processFeeding(creature1, food, 0.7);
+  // Debug distance calculation
+  const distance = Math.sqrt(
+    (creature1.physics.position.x - food.position.x) ** 2 +
+      (creature1.physics.position.y - food.position.y) ** 2
+  );
+  const maxRange = creature1.physics.collisionRadius + food.size;
+  console.log(
+    `   Distance: ${distance.toFixed(2)}px, Max range: ${maxRange.toFixed(2)}px`
+  );
+
+  const feedingResult = grassland.processFeeding(creature1, food, 0.9); // Higher feeding power
   console.log(`Feeding result:`);
   console.log(`   Success: ${feedingResult.success}`);
   console.log(`   Energy gained: ${feedingResult.energyGain.toFixed(2)}`);

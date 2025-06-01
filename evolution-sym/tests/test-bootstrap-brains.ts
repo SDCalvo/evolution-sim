@@ -42,7 +42,9 @@ console.log(`  - Description: ${strategy0.description}\n`);
 console.log("🧪 SURVIVAL SCENARIO TESTING:\n");
 
 console.log("Scenario 1: Low energy + nearby food");
-const scenario1 = [0.2, 0.0, 0.9, 0.5, 0.1, 0.8, 0.3, 0.4, 0.7, 0.6, 0.5, 0.8]; // [food_dist, food_type, predator_dist, prey_dist, energy, health, age, pop_density, vision_forward, vision_left, vision_right, vision_back]
+const scenario1 = [
+  0.2, 0.0, 0.9, 0.5, 0.1, 0.8, 0.3, 0.4, 0.7, 0.6, 0.5, 0.8, 0.0, 0.0,
+]; // [food_dist, food_type, predator_dist, prey_dist, energy, health, age, pop_density, vision_forward, vision_left, vision_right, vision_back, carrion_dist, carrion_freshness]
 const response1 = founderBrain.process(scenario1);
 console.log(
   `  Input: Low energy (${scenario1[4]}), close food (${scenario1[0]})`
@@ -63,7 +65,9 @@ console.log(
 );
 
 console.log("Scenario 2: High energy + mature age");
-const scenario2 = [0.8, 0.5, 0.9, 0.7, 0.8, 0.9, 0.7, 0.3, 0.6, 0.7, 0.4, 0.9]; // High energy, mature
+const scenario2 = [
+  0.8, 0.5, 0.9, 0.7, 0.8, 0.9, 0.7, 0.3, 0.6, 0.7, 0.4, 0.9, 0.0, 0.0,
+]; // High energy, mature
 const response2 = founderBrain.process(scenario2);
 console.log(
   `  Input: High energy (${scenario2[4]}), mature age (${scenario2[6]})`
@@ -84,7 +88,9 @@ console.log(
 );
 
 console.log("Scenario 3: Predator nearby");
-const scenario3 = [0.6, 0.5, 0.1, 0.8, 0.5, 0.7, 0.4, 0.2, 0.5, 0.3, 0.8, 0.4]; // Close predator
+const scenario3 = [
+  0.6, 0.5, 0.1, 0.8, 0.5, 0.7, 0.4, 0.2, 0.5, 0.3, 0.8, 0.4, 0.0, 0.0,
+]; // Close predator
 const response3 = founderBrain.process(scenario3);
 console.log(`  Input: Close predator (${scenario3[2]}), moderate energy`);
 console.log(
@@ -101,6 +107,29 @@ console.log(
     isFleeingX || isFleeingY
       ? "FLEEING behavior activated ✅"
       : "No fleeing response ❌"
+  }\n`
+);
+
+console.log("Scenario 4: Carrion scavenging opportunity");
+const scenario4 = [
+  0.8, 0.5, 0.9, 0.7, 0.4, 0.8, 0.5, 0.3, 0.6, 0.7, 0.4, 0.5, 0.2, 0.8,
+]; // Low energy, nearby fresh carrion
+const response4 = founderBrain.process(scenario4);
+console.log(
+  `  Input: Low energy (${scenario4[4]}), nearby carrion (${scenario4[12]}, freshness: ${scenario4[13]})`
+);
+console.log(
+  `  Output: [moveX=${response4[0].toFixed(3)}, moveY=${response4[1].toFixed(
+    3
+  )}, eat=${response4[2].toFixed(3)}, attack=${response4[3].toFixed(
+    3
+  )}, reproduce=${response4[4].toFixed(3)}]`
+);
+console.log(
+  `  Analysis: ${
+    response4[2] > 0.5
+      ? "CARRION FEEDING behavior activated ✅"
+      : "No carrion feeding response ❌"
   }\n`
 );
 
@@ -191,7 +220,7 @@ console.log(
 console.log("📊 COMPARISON: Random vs Bootstrap Brains\n");
 
 console.log("Random Brain (would cause population collapse):");
-const randomBrain = new NeuralNetwork([12, 8, 5]);
+const randomBrain = new NeuralNetwork([14, 8, 5]);
 const randomResponse = randomBrain.process(scenario1); // Same low energy scenario
 console.log(
   `  - Response to low energy + food: eat=${randomResponse[2].toFixed(3)}`

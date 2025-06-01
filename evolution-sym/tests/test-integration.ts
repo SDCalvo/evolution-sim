@@ -163,7 +163,7 @@ function testCompleteIntegration() {
     console.log("\n🌍 ENVIRONMENTAL INTERACTION:");
     console.log(`  Total spatial queries: ${finalEnvStats.spatialQueries}`);
     console.log(`  Collision checks: ${finalEnvStats.collisionChecks}`);
-    console.log(`  Food consumed: ${20 * 140 - finalEnvStats.totalFood} items`); // Estimate
+    console.log(`  Food remaining: ${finalEnvStats.totalFood} items`);
     console.log(
       `  Queries per tick: ${(finalEnvStats.spatialQueries / tickCount).toFixed(
         1
@@ -176,17 +176,17 @@ function testCompleteIntegration() {
       `  Average update time: ${finalStats.updateTimeMs.toFixed(2)}ms`
     );
     console.log(`  Target ticks/second: 10`);
-    console.log(
-      `  Actual performance: ${(1000 / finalStats.updateTimeMs).toFixed(
-        1
-      )} ticks/second`
-    );
-    console.log(
-      `  Performance ratio: ${(
-        (1000 / finalStats.updateTimeMs / 10) *
-        100
-      ).toFixed(1)}%`
-    );
+
+    // Avoid division by zero
+    if (finalStats.updateTimeMs > 0) {
+      const actualTps = 1000 / finalStats.updateTimeMs;
+      const performanceRatio = (actualTps / 10) * 100;
+      console.log(`  Actual performance: ${actualTps.toFixed(1)} ticks/second`);
+      console.log(`  Performance ratio: ${performanceRatio.toFixed(1)}%`);
+    } else {
+      console.log(`  Actual performance: >1000 ticks/second (very fast)`);
+      console.log(`  Performance ratio: >10000% (excellent)`);
+    }
 
     // Behavioral analysis
     if (finalCreatures.length > 0) {
