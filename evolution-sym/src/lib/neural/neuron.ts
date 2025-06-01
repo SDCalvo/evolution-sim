@@ -209,6 +209,18 @@ export class Neuron {
   }
 
   /**
+   * Set a specific weight by index (useful for hardcoding behaviors)
+   */
+  public setWeight(index: number, weight: number): void {
+    if (index < 0 || index >= this.weights.length) {
+      throw new Error(
+        `Weight index ${index} out of range [0, ${this.weights.length - 1}]`
+      );
+    }
+    this.weights[index] = weight;
+  }
+
+  /**
    * Set the bias
    */
   public setBias(bias: number): void {

@@ -163,6 +163,82 @@ export class Layer {
   }
 
   /**
+   * Set a specific weight between input and neuron
+   * Used for hardcoding specific behaviors in bootstrap brains
+   */
+  public setWeight(fromNeuron: number, toNeuron: number, weight: number): void {
+    if (toNeuron < 0 || toNeuron >= this.neurons.length) {
+      throw new Error(
+        `Invalid toNeuron ${toNeuron}, must be 0-${this.neurons.length - 1}`
+      );
+    }
+
+    this.neurons[toNeuron].setWeight(fromNeuron, weight);
+  }
+
+  /**
+   * Set a specific bias for a neuron
+   * Used for hardcoding specific behaviors in bootstrap brains
+   */
+  public setBias(neuron: number, bias: number): void {
+    if (neuron < 0 || neuron >= this.neurons.length) {
+      throw new Error(
+        `Invalid neuron ${neuron}, must be 0-${this.neurons.length - 1}`
+      );
+    }
+
+    this.neurons[neuron].setBias(bias);
+  }
+
+  /**
+   * Get total number of weights in this layer
+   */
+  public getTotalWeights(): number {
+    return this.neurons.reduce(
+      (total, neuron) => total + neuron.weights.length,
+      0
+    );
+  }
+
+  /**
+   * Get sum of all weights in this layer
+   */
+  public getWeightSum(): number {
+    return this.neurons.reduce((sum, neuron) => {
+      return (
+        sum +
+        neuron.weights.reduce((neuronSum, weight) => neuronSum + weight, 0)
+      );
+    }, 0);
+  }
+
+  /**
+   * Create offspring layer through sexual reproduction (crossover)
+   * Takes neurons randomly from either parent
+   */
+  public static crossover(parent1: Layer, parent2: Layer): Layer {
+    if (
+      parent1.getInputSize() !== parent2.getInputSize() ||
+      parent1.getOutputSize() !== parent2.getOutputSize()
+    ) {
+      throw new Error("Cannot crossover layers with different sizes");
+    }
+
+    const inputSize = parent1.getInputSize();
+    const outputSize = parent1.getOutputSize();
+    const childNeurons: Neuron[] = [];
+
+    // For each neuron position, randomly choose from either parent
+    for (let i = 0; i < outputSize; i++) {
+      const useParent1 = Math.random() < 0.5;
+      const sourceNeuron = useParent1 ? parent1.neurons[i] : parent2.neurons[i];
+      childNeurons.push(sourceNeuron.clone());
+    }
+
+    return new Layer(inputSize, outputSize, "sigmoid", childNeurons);
+  }
+
+  /**
    * Get statistics about this layer
    */
   public getStats(): LayerStats {

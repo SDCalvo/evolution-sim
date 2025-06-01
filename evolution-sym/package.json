@@ -12,6 +12,7 @@
     "test:layer": "tsx tests/layer.test.ts",
     "test:network": "tsx tests/network.test.ts",
     "test:parental-care": "tsx tests/test-simple-parental-care.ts",
+    "test:bootstrap": "tsx tests/test-bootstrap-brains.ts",
     "test:all": "tsx tests/*.test.ts"
   },
   "dependencies": {

@@ -192,6 +192,96 @@ export class NeuralNetwork {
   }
 
   /**
+   * Set a specific weight between neurons
+   * Used for hardcoding specific behaviors in bootstrap brains
+   */
+  public setWeight(
+    fromLayer: number,
+    fromNeuron: number,
+    toLayer: number,
+    toNeuron: number,
+    weight: number
+  ): void {
+    if (fromLayer < 0 || fromLayer >= this.layers.length) {
+      throw new Error(
+        `Invalid fromLayer ${fromLayer}, must be 0-${this.layers.length - 1}`
+      );
+    }
+    if (toLayer !== fromLayer + 1) {
+      throw new Error(
+        `Can only set weights to next layer. Got fromLayer=${fromLayer}, toLayer=${toLayer}`
+      );
+    }
+
+    const layer = this.layers[fromLayer];
+    layer.setWeight(fromNeuron, toNeuron, weight);
+  }
+
+  /**
+   * Set a specific bias for a neuron
+   * Used for hardcoding specific behaviors in bootstrap brains
+   */
+  public setBias(layer: number, neuron: number, bias: number): void {
+    if (layer < 0 || layer >= this.layers.length) {
+      throw new Error(
+        `Invalid layer ${layer}, must be 0-${this.layers.length - 1}`
+      );
+    }
+
+    this.layers[layer].setBias(neuron, bias);
+  }
+
+  /**
+   * Get total number of weights in the network
+   */
+  public getTotalWeights(): number {
+    return this.layers.reduce(
+      (total, layer) => total + layer.getTotalWeights(),
+      0
+    );
+  }
+
+  /**
+   * Get average weight value across the network
+   */
+  public getAverageWeight(): number {
+    const totalWeights = this.getTotalWeights();
+    if (totalWeights === 0) return 0;
+
+    const weightSum = this.layers.reduce(
+      (sum, layer) => sum + layer.getWeightSum(),
+      0
+    );
+    return weightSum / totalWeights;
+  }
+
+  /**
+   * Create offspring network through sexual reproduction (crossover)
+   * Takes weights randomly from either parent
+   */
+  public static crossover(
+    parent1: NeuralNetwork,
+    parent2: NeuralNetwork
+  ): NeuralNetwork {
+    if (
+      parent1.getArchitecture().join(",") !==
+      parent2.getArchitecture().join(",")
+    ) {
+      throw new Error("Cannot crossover networks with different architectures");
+    }
+
+    const architecture = parent1.getArchitecture();
+    const child = new NeuralNetwork(architecture);
+
+    // Cross over each layer
+    for (let i = 0; i < child.layers.length; i++) {
+      child.layers[i] = Layer.crossover(parent1.layers[i], parent2.layers[i]);
+    }
+
+    return child;
+  }
+
+  /**
    * Mutate this neural network
    * Applies mutation to all layers and their neurons
    *
