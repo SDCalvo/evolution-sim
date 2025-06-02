@@ -29,9 +29,9 @@ export interface CreatureGenetics {
   meatPreference: number; // 0.0-1.0: Attraction to meat/other creatures
 
   // Life cycle parameters
-  maturityAge: number; // 50-200: Age when can reproduce (in simulation ticks)
-  lifespan: number; // 500-2000: Maximum age before death
-  reproductionCost: number; // 20-60: Energy cost to create offspring
+  maturityAge: number; // 30-60: Age when can reproduce (in simulation ticks)
+  lifespan: number; // 800-1200: Maximum age before death
+  reproductionCost: number; // 30-50: Energy cost to create offspring
 
   // Parental care strategy (r-strategy vs K-strategy trade-off)
   parentalCare: number; // 0.0-1.0: Investment in fewer, higher-quality offspring
@@ -139,7 +139,7 @@ export class GeneticsHelper {
       meatPreference: 0.3 + Math.random() * 0.4, // 0.3-0.7
 
       // Life cycle - moderate values
-      maturityAge: 80 + Math.random() * 40, // 80-120
+      maturityAge: 30 + Math.random() * 30, // 30-60 (REDUCED from 80-120 for faster reproduction)
       lifespan: 800 + Math.random() * 400, // 800-1200
       reproductionCost: 30 + Math.random() * 20, // 30-50
 
@@ -263,11 +263,11 @@ export class GeneticsHelper {
       0.0,
       Math.min(1.0, genetics.meatPreference)
     );
-    genetics.maturityAge = Math.max(50, Math.min(200, genetics.maturityAge));
-    genetics.lifespan = Math.max(500, Math.min(2000, genetics.lifespan));
+    genetics.maturityAge = Math.max(30, Math.min(60, genetics.maturityAge));
+    genetics.lifespan = Math.max(800, Math.min(1200, genetics.lifespan));
     genetics.reproductionCost = Math.max(
-      20,
-      Math.min(60, genetics.reproductionCost)
+      30,
+      Math.min(50, genetics.reproductionCost)
     );
     genetics.parentalCare = Math.max(0.0, Math.min(1.0, genetics.parentalCare));
   }

@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import styled from "styled-components";
 import { SimpleSimulationStats } from "../../lib/simulation/simpleSimulation";
 
 interface ControlPanelProps {
@@ -10,6 +11,191 @@ interface ControlPanelProps {
   stats?: SimpleSimulationStats;
 }
 
+const Container = styled.div`
+  padding: 1rem;
+`;
+
+const Header = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+`;
+
+const Title = styled.h2`
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: white;
+  margin: 0;
+`;
+
+const InfoIcon = styled.div`
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.25rem;
+  height: 1.25rem;
+  color: #60a5fa;
+  cursor: help;
+  transition: color 0.2s;
+
+  &:hover {
+    color: #93c5fd;
+  }
+
+  svg {
+    width: 1rem;
+    height: 1rem;
+  }
+`;
+
+const ButtonContainer = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+`;
+
+const Button = styled.button<{ variant: "primary" | "secondary" | "danger" }>`
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border-radius: 0.5rem;
+  border: none;
+  font-weight: 500;
+  transition: all 0.2s;
+  transform: scale(1);
+  cursor: pointer;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+
+  &:hover {
+    transform: scale(1.02);
+  }
+
+  ${(props) => {
+    switch (props.variant) {
+      case "danger":
+        return `
+          background: #dc2626;
+          color: white;
+          box-shadow: 0 4px 6px -1px rgba(220, 38, 38, 0.25);
+          
+          &:hover {
+            background: #b91c1c;
+          }
+        `;
+      case "primary":
+        return `
+          background: #059669;
+          color: white;
+          box-shadow: 0 4px 6px -1px rgba(5, 150, 105, 0.25);
+          
+          &:hover {
+            background: #047857;
+          }
+        `;
+      case "secondary":
+        return `
+          background: #4b5563;
+          color: white;
+          
+          &:hover {
+            background: #374151;
+          }
+        `;
+      default:
+        return "";
+    }
+  }}
+`;
+
+const StatusSection = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+`;
+
+const StatusCard = styled.div`
+  background: #374151;
+  border-radius: 0.5rem;
+  padding: 0.75rem;
+`;
+
+const StatusRow = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+`;
+
+const StatusLeft = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+`;
+
+const StatusIndicator = styled.div<{ isRunning: boolean }>`
+  width: 0.75rem;
+  height: 0.75rem;
+  border-radius: 50%;
+  background: ${(props) => (props.isRunning ? "#10b981" : "#ef4444")};
+
+  ${(props) =>
+    props.isRunning &&
+    `
+    animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    
+    @keyframes pulse {
+      0%, 100% {
+        opacity: 1;
+      }
+      50% {
+        opacity: 0.5;
+      }
+    }
+  `}
+`;
+
+const StatusText = styled.span`
+  color: white;
+  font-size: 0.875rem;
+  font-weight: 500;
+`;
+
+const TickText = styled.span`
+  color: #9ca3af;
+  font-size: 0.75rem;
+`;
+
+const PerformanceRow = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+`;
+
+const PerformanceLabel = styled.span`
+  color: #d1d5db;
+  font-size: 0.875rem;
+`;
+
+const PerformanceValue = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+`;
+
+const PerformanceIndicator = styled.div<{ ups: number }>`
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  background: ${(props) =>
+    props.ups > 25 ? "#10b981" : props.ups > 15 ? "#f59e0b" : "#ef4444"};
+`;
+
+const PerformanceText = styled.span`
+  color: white;
+  font-family: "Courier New", monospace;
+  font-size: 0.875rem;
+`;
+
 export const ControlPanel: React.FC<ControlPanelProps> = ({
   isRunning,
   onToggleRunning,
@@ -17,91 +203,59 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
   stats,
 }) => {
   return (
-    <div className="bg-gray-800 rounded-lg p-6 border border-gray-600">
-      <h2 className="text-xl font-semibold text-white mb-4">
-        🎮 Simulation Controls
-      </h2>
+    <Container>
+      <Header>
+        <Title>🎮 Controls</Title>
+        <InfoIcon title="Simulation Controls - Start/Pause: Begin or halt evolution, Reset: Generate new random population, Status indicator shows current state">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+            />
+          </svg>
+        </InfoIcon>
+      </Header>
 
-      {/* Main Controls */}
-      <div className="flex gap-3 mb-6">
-        <button
+      <ButtonContainer>
+        <Button
+          variant={isRunning ? "danger" : "primary"}
           onClick={onToggleRunning}
-          className={`px-6 py-2 rounded-lg font-medium transition-colors ${
-            isRunning
-              ? "bg-red-600 hover:bg-red-700 text-white"
-              : "bg-green-600 hover:bg-green-700 text-white"
-          }`}
         >
-          {isRunning ? "⏸️ Pause" : "▶️ Start"}
-        </button>
+          {isRunning ? "⏸️ Pause Simulation" : "▶️ Start Evolution"}
+        </Button>
 
-        <button
-          onClick={onReset}
-          className="px-6 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg font-medium transition-colors"
-        >
-          🔄 Reset
-        </button>
-      </div>
+        <Button variant="secondary" onClick={onReset}>
+          🔄 Reset Population
+        </Button>
+      </ButtonContainer>
 
-      {/* Statistics Display */}
       {stats && (
-        <div className="space-y-3">
-          <h3 className="text-lg font-medium text-white">📊 Live Statistics</h3>
+        <StatusSection>
+          <StatusCard>
+            <StatusRow>
+              <StatusLeft>
+                <StatusIndicator isRunning={isRunning} />
+                <StatusText>{isRunning ? "Running" : "Paused"}</StatusText>
+              </StatusLeft>
+              <TickText>Tick #{stats.currentTick}</TickText>
+            </StatusRow>
+          </StatusCard>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="bg-gray-700 rounded p-3">
-              <div className="text-gray-300 text-sm">Simulation Tick</div>
-              <div className="text-white text-xl font-mono">
-                {stats.currentTick}
-              </div>
-            </div>
-
-            <div className="bg-gray-700 rounded p-3">
-              <div className="text-gray-300 text-sm">Living Creatures</div>
-              <div className="text-green-400 text-xl font-mono">
-                {stats.livingCreatures}
-              </div>
-            </div>
-
-            <div className="bg-gray-700 rounded p-3">
-              <div className="text-gray-300 text-sm">Food Available</div>
-              <div className="text-yellow-400 text-xl font-mono">
-                {stats.totalFood}
-              </div>
-            </div>
-
-            <div className="bg-gray-700 rounded p-3">
-              <div className="text-gray-300 text-sm">Average Fitness</div>
-              <div className="text-blue-400 text-xl font-mono">
-                {stats.averageFitness.toFixed(2)}
-              </div>
-            </div>
-          </div>
-
-          {/* Performance Metrics */}
-          <div className="bg-gray-700 rounded p-3">
-            <div className="text-gray-300 text-sm mb-2">Performance</div>
-            <div className="flex justify-between items-center">
-              <span className="text-white">Updates/sec:</span>
-              <span className="text-purple-400 font-mono">
-                {stats.updatesPerSecond.toFixed(1)}
-              </span>
-            </div>
-          </div>
-
-          {/* Status Indicator */}
-          <div className="flex items-center gap-2">
-            <div
-              className={`w-3 h-3 rounded-full ${
-                isRunning ? "bg-green-500 animate-pulse" : "bg-red-500"
-              }`}
-            ></div>
-            <span className="text-gray-300 text-sm">
-              {isRunning ? "Simulation Running" : "Simulation Paused"}
-            </span>
-          </div>
-        </div>
+          <StatusCard>
+            <PerformanceRow>
+              <PerformanceLabel>Performance:</PerformanceLabel>
+              <PerformanceValue>
+                <PerformanceIndicator ups={stats.updatesPerSecond} />
+                <PerformanceText>
+                  {stats.updatesPerSecond.toFixed(1)} UPS
+                </PerformanceText>
+              </PerformanceValue>
+            </PerformanceRow>
+          </StatusCard>
+        </StatusSection>
       )}
-    </div>
+    </Container>
   );
 };

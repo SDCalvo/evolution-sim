@@ -125,19 +125,79 @@ export const SimulationCanvas: React.FC<SimulationCanvasProps> = ({
       ctx.stroke();
     }
 
-    // Draw food items (if we can access them)
-    // For now, we'll draw some placeholder food
-    ctx.fillStyle = "#4ade80";
-    for (let i = 0; i < 20; i++) {
-      const x = Math.random() * width;
-      const y = Math.random() * height;
-      const distance = Math.sqrt((x - centerX) ** 2 + (y - centerY) ** 2);
+    // Draw real food entities from the environment! 🍃🦴
+    if (simulationRef.current) {
+      const environment = simulationRef.current.getEnvironment();
+      const allFood = environment.getAllFood();
 
-      if (distance < radius - 10) {
-        ctx.beginPath();
-        ctx.arc(x, y, 3, 0, 2 * Math.PI);
-        ctx.fill();
-      }
+      allFood.forEach((food) => {
+        const x = food.position.x;
+        const y = food.position.y;
+
+        // Skip if outside world bounds
+        const distance = Math.sqrt((x - centerX) ** 2 + (y - centerY) ** 2);
+        if (distance > radius - 10) return;
+
+        // Different colors and styles for different food types
+        if (food.type === "plant_food") {
+          // 🌱 Plant food: Green circles
+          ctx.fillStyle = "#4ade80";
+          ctx.beginPath();
+          ctx.arc(x, y, 3, 0, 2 * Math.PI);
+          ctx.fill();
+        } else if (food.type === "small_prey") {
+          // 🐭 Small prey: Yellow circles (moving)
+          ctx.fillStyle = "#facc15";
+          ctx.beginPath();
+          ctx.arc(x, y, 4, 0, 2 * Math.PI);
+          ctx.fill();
+
+          // Add movement indicator for prey
+          if ("velocity" in food && food.velocity) {
+            ctx.strokeStyle = "#facc15";
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(x, y);
+            ctx.lineTo(x + food.velocity.x * 10, y + food.velocity.y * 10);
+            ctx.stroke();
+          }
+        } else if (food.type === "carrion") {
+          // 🦴 Carrion: Brown/gray with decay effects
+          const carrion = food as any; // Type assertion for carrion properties
+
+          // Color based on decay stage (brown to gray)
+          const freshness = carrion.currentDecayStage || 0;
+          const red = Math.floor(139 - freshness * 50); // 139 to 89
+          const green = Math.floor(69 - freshness * 20); // 69 to 49
+          const blue = Math.floor(19 + freshness * 20); // 19 to 39
+
+          ctx.fillStyle = `rgb(${red}, ${green}, ${blue})`;
+          ctx.globalAlpha = carrion.decayVisual?.opacity || 1 - freshness * 0.7;
+
+          // Size based on original creature size
+          const size = carrion.size || 6;
+          ctx.beginPath();
+          ctx.arc(x, y, size * 0.8, 0, 2 * Math.PI);
+          ctx.fill();
+
+          // Add scent indicator for fresh carrion
+          if (carrion.scent > 0.5) {
+            ctx.strokeStyle = `rgba(139, 69, 19, ${carrion.scent * 0.3})`;
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.arc(x, y, size * 1.5, 0, 2 * Math.PI);
+            ctx.stroke();
+          }
+
+          ctx.globalAlpha = 1.0; // Reset alpha
+        } else if (food.type === "mushroom_food") {
+          // 🍄 Mushroom food: Purple/brown (not yet spawned but ready)
+          ctx.fillStyle = "#a855f7";
+          ctx.beginPath();
+          ctx.arc(x, y, 5, 0, 2 * Math.PI);
+          ctx.fill();
+        }
+      });
     }
 
     // Draw creatures

@@ -31,6 +31,7 @@ import {
   EntityType,
   Carrion,
 } from "../environment/environmentTypes";
+import { simulationLogger, LogCategory } from "../logging/simulationLogger";
 
 export class Creature {
   // Core composition - HAS-A relationships
@@ -376,6 +377,29 @@ export class Creature {
     // Attempt reproduction if conditions met
     if (actions.reproduce > 0.6 && this.canReproduce()) {
       this.attemptReproduction(environment);
+    } else if (
+      this.isMateable &&
+      this.physics.age > this.genetics.maturityAge
+    ) {
+      // 🚫 DEBUG: Log why reproduction isn't happening
+      if (this.stats.reproductionAttempts % 60 === 0) {
+        const reasons = [];
+        if (actions.reproduce <= 0.6)
+          reasons.push(`weak signal: ${actions.reproduce.toFixed(2)}`);
+        if (!this.canReproduce()) {
+          if (this.reproductionCooldown > 0)
+            reasons.push(`cooldown: ${this.reproductionCooldown}`);
+          if (this.physics.energy <= 50)
+            reasons.push(`low energy: ${this.physics.energy.toFixed(1)}`);
+        }
+        simulationLogger.warning(
+          LogCategory.REPRODUCTION,
+          `${this.id.substring(0, 8)} reproduction blocked: ${reasons.join(
+            ", "
+          )}`
+        );
+      }
+      this.stats.reproductionAttempts++;
     }
   }
 
@@ -679,11 +703,32 @@ export class Creature {
 
     // Natural energy decay based on efficiency (frame-rate independent)
     // Target: lose ~10 energy per second at 60 FPS with efficiency 1.0
+    const oldEnergy = this.physics.energy;
     const decayRate = (2 - this.genetics.efficiency) * 0.0027; // Reduced by ~37x for high FPS
     this.physics.energy = Math.max(0, this.physics.energy - decayRate);
 
+    // 🔋 CRITICAL ENERGY LOGGING
+    if (this.physics.energy <= 10 && oldEnergy > 10) {
+      simulationLogger.logCriticalEnergy(
+        this.id,
+        this.physics.energy,
+        this.physics.age
+      );
+    }
+
     // Update maturity status
+    const wasMateable = this.isMateable;
     this.isMateable = this.physics.age > this.genetics.maturityAge;
+
+    // 🌟 MATURITY MILESTONE LOGGING
+    if (!wasMateable && this.isMateable) {
+      simulationLogger.logMaturity(
+        this.id,
+        this.physics.age,
+        this.genetics.maturityAge,
+        this.physics.energy
+      );
+    }
 
     // Update reproduction cooldown
     if (this.reproductionCooldown > 0) {
@@ -739,16 +784,30 @@ export class Creature {
       // Scavengers (high meat preference) are better at eating carrion
       if (nearestFood.type === EntityType.Carrion) {
         feedingPower = this.genetics.meatPreference * 0.9; // Meat lovers = better scavengers
-        console.log(
-          `🦴 ${this.id.substring(
-            0,
-            8
-          )} attempting to scavenge carrion (power: ${feedingPower.toFixed(2)})`
-        );
+        if (this.stats.feedingAttempts % 30 === 0) {
+          console.log(
+            `🦴 ${this.id.substring(
+              0,
+              8
+            )} attempting to scavenge carrion (power: ${feedingPower.toFixed(
+              2
+            )})`
+          );
+        }
       }
 
-      // Process feeding through environment
-      environment.processFeeding(this, nearestFood, feedingPower);
+      // 🔥 FIX: Process feeding and check if it was successful
+      const feedingResult = environment.processFeeding(
+        this,
+        nearestFood,
+        feedingPower
+      );
+
+      // If feeding failed (food already consumed), stop trying immediately
+      if (!feedingResult.success) {
+        // Food might have been consumed by another creature - stop trying this tick
+        return;
+      }
     }
   }
 
@@ -784,6 +843,24 @@ export class Creature {
   private attemptReproduction(environment?: Environment): void {
     if (!environment) return;
 
+    // 🔥 FIX: Add debugging for reproduction issues
+    if (!this.canReproduce()) {
+      // Log why reproduction failed every 60 ticks to avoid spam
+      if (this.stats.reproductionAttempts % 60 === 0) {
+        const reasons = [];
+        if (!this.isMateable) reasons.push("not mateable");
+        if (this.reproductionCooldown > 0)
+          reasons.push(`cooldown: ${this.reproductionCooldown}`);
+        if (this.physics.energy <= 50)
+          reasons.push(`low energy: ${this.physics.energy.toFixed(1)}`);
+        console.log(
+          `🚫 ${this.id.substring(0, 8)} can't reproduce: ${reasons.join(", ")}`
+        );
+      }
+      this.stats.reproductionAttempts++;
+      return;
+    }
+
     // Query for nearby potential mates
     const query: SpatialQuery = {
       position: this.physics.position,
@@ -795,6 +872,15 @@ export class Creature {
 
     const results = environment.queryNearbyEntities(query);
 
+    if (results.creatures.length === 0) {
+      // No nearby creatures - log occasionally
+      if (this.stats.reproductionAttempts % 60 === 0) {
+        console.log(`💔 ${this.id.substring(0, 8)} found no nearby mates`);
+      }
+      this.stats.reproductionAttempts++;
+      return;
+    }
+
     for (const potentialMate of results.creatures) {
       // Check if suitable mate (same species, mature, has energy)
       if (
@@ -802,7 +888,7 @@ export class Creature {
         potentialMate.canReproduce() &&
         potentialMate.physics.age >= potentialMate.genetics.maturityAge
       ) {
-        // Create offspring at nearby location
+        // 🎉 SUCCESS! Create offspring at nearby location
         const offspring = Creature.createOffspring(this, potentialMate);
 
         // Add offspring to environment
@@ -823,6 +909,9 @@ export class Creature {
         this.reproductionCooldown = 100; // Ticks before can reproduce again
         potentialMate.reproductionCooldown = 100;
 
+        // 🎉 SUCCESS LOG
+        simulationLogger.logBirth([this.id, potentialMate.id], offspring.id);
+
         break; // Only reproduce with first suitable mate found
       }
     }
@@ -837,7 +926,7 @@ export class Creature {
     return (
       this.isMateable &&
       this.reproductionCooldown === 0 &&
-      this.physics.energy > 50
+      this.physics.energy > 30 // REDUCED from 50 to 30 for easier reproduction
     );
   }
 

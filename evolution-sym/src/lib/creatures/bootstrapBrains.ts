@@ -45,64 +45,50 @@ export class BootstrapBrainFactory {
   }
 
   /**
-   * Generation 0: Minimum Viable Creature brain
-   * Hardcoded with just enough survival instinct to reproduce once
+   * Founder generation: Hand-coded survival instincts
+   * These brains are designed to keep creatures alive long enough to reproduce
    */
   public static createFounderBrain(genetics: CreatureGenetics): NeuralNetwork {
     // Network architecture: 14 sensors → 8 hidden → 5 actions
-    // Sensors: food dist, food type, carrion dist, carrion freshness, predator, prey, energy, health, age, population, vision rays (4)
+    // Sensors: [0]foodDist, [1]foodType, [2]carrionDist, [3]carrionFresh, [4]predatorDist, [5]preyDist,
+    //          [6]energy, [7]health, [8]age, [9]population, [10]visionForward, [11]visionLeft, [12]visionRight, [13]visionBack
     const brain = new NeuralNetwork([14, 8, 5]);
 
-    // RULE 1: Survival Priority - Energy Management
-    // When energy is low (< 0.3) and food is nearby (< 0.5), prioritize eating
-    this.encodeRule(
-      brain,
-      [6, 0], // energy sensor + food distance sensor (updated indices!)
-      [2], // eating action
-      [-0.7, -0.6], // low energy + close food
-      0.8 // strong eating response
-    );
+    // SIMPLE APPROACH: Use strong biases and basic input connections
+    // This ensures creatures will actually DO things instead of just sitting still
 
-    // RULE 2: Reproduction Priority - Energy + Maturity
-    // When energy is high (> 0.6) and mature (age > 0.4), attempt reproduction
-    this.encodeRule(
-      brain,
-      [6, 8], // energy sensor + age sensor (updated indices!)
-      [4], // reproduction action
-      [0.6, 0.4], // high energy + mature age
-      0.7 // strong reproduction response
-    );
+    // 🍽️ EATING BIAS: Make creatures want to eat when energy is low
+    brain.setBias(1, 2, 3.0); // VERY STRONG bias toward eating action (increased from 2.0)
 
-    // RULE 3: Predator Avoidance - Safety First
-    // When predator is very close (< 0.2), flee in opposite direction
-    this.encodeRule(
-      brain,
-      [4], // predator distance sensor (updated index!)
-      [0, 1], // movement actions
-      [-0.8], // very close predator (inverted - close = negative)
-      0.9 // very strong flee response
-    );
+    // 🏃 MOVEMENT BIAS: Make creatures move around to explore
+    brain.setBias(1, 0, 1.5); // Strong bias toward movement X
+    brain.setBias(1, 1, 1.5); // Strong bias toward movement Y
 
-    // RULE 4: 🦴 CARRION SCAVENGING - New Survival Strategy!
-    // When energy is low and fresh carrion is nearby, prioritize scavenging
-    this.encodeRule(
-      brain,
-      [6, 2, 3], // energy sensor + carrion distance + carrion freshness
-      [2], // eating action
-      [-0.6, -0.5, 0.7], // low energy + close carrion + fresh carrion
-      0.75 // strong scavenging response
-    );
+    // 💕 REPRODUCTION BIAS: Make creatures want to reproduce when mature
+    brain.setBias(1, 4, 2.5); // STRONG bias toward reproduction (increased from 1.0)
 
-    // RULE 5: Basic Exploration - Default Behavior
-    // When nothing urgent, slow exploration based on curiosity
-    this.encodeExploration(brain, genetics.curiosity);
+    // ⚔️ ATTACK BIAS: Small bias toward attacking when threatened
+    brain.setBias(1, 3, 0.5); // Small bias toward attacking
 
-    // RULE 6: Food Seeking - Basic Foraging
-    // Move toward food when moderately hungry
-    this.encodeFoodSeeking(brain, genetics);
+    // 🔗 KEY CONNECTIONS: Connect important sensors to actions
+    // Energy sensor (6) to eating action (2) - when energy low, eat more
+    brain.setWeight(0, 6, 1, 2, -4.0); // STRONGER negative weight: low energy = high eating desire (increased from -3.0)
 
-    // Add small amount of randomness for diversity (5% variation)
-    brain.mutate(1.0, 0.05);
+    // Food distance sensor (0) to eating action (2) - when food close, eat more
+    brain.setWeight(0, 0, 1, 2, -3.0); // STRONGER negative weight: close food = high eating desire (increased from -2.0)
+
+    // Predator distance sensor (4) to movement actions (0,1) - when predator close, move more
+    brain.setWeight(0, 4, 1, 0, -2.0); // Negative weight: close predator = high movement
+    brain.setWeight(0, 4, 1, 1, -2.0); // Negative weight: close predator = high movement
+
+    // Age sensor (8) to reproduction action (4) - when mature, reproduce more
+    brain.setWeight(0, 8, 1, 4, 3.0); // STRONGER weight: high age = high reproduction desire (increased from 2.0)
+
+    // Energy sensor (6) to reproduction action (4) - when high energy, reproduce more
+    brain.setWeight(0, 6, 1, 4, 2.5); // STRONGER weight: high energy = high reproduction desire (increased from 1.5)
+
+    // Add tiny bit of randomness for diversity (1% variation)
+    brain.mutate(1.0, 0.01);
 
     return brain;
   }
@@ -155,97 +141,6 @@ export class BootstrapBrainFactory {
     child.mutate(mutationRate, mutationStrength);
 
     return child;
-  }
-
-  /**
-   * Encode a simple behavioral rule into the neural network
-   */
-  private static encodeRule(
-    brain: NeuralNetwork,
-    sensorIndices: number[],
-    actionIndices: number[],
-    triggerValues: number[],
-    responseStrength: number
-  ): void {
-    const inputToHiddenLayer = 0; // Layer connecting input to hidden
-    const hiddenToOutputLayer = 1; // Layer connecting hidden to output
-
-    // Connect sensors to hidden neurons
-    for (let i = 0; i < sensorIndices.length; i++) {
-      const sensorIdx = sensorIndices[i];
-      const triggerValue = triggerValues[i];
-
-      // Connect to multiple hidden neurons for redundancy
-      for (let h = 0; h < 3; h++) {
-        brain.setWeight(
-          inputToHiddenLayer,
-          sensorIdx,
-          inputToHiddenLayer + 1,
-          h,
-          triggerValue * 0.8
-        );
-      }
-    }
-
-    // Connect hidden neurons to action outputs
-    for (const actionIdx of actionIndices) {
-      for (let h = 0; h < 3; h++) {
-        brain.setWeight(
-          hiddenToOutputLayer,
-          h,
-          hiddenToOutputLayer + 1,
-          actionIdx,
-          responseStrength
-        );
-      }
-    }
-  }
-
-  /**
-   * Encode basic exploration behavior
-   */
-  private static encodeExploration(
-    brain: NeuralNetwork,
-    curiosity: number
-  ): void {
-    // Higher curiosity = more random movement when nothing urgent
-    const explorationStrength = curiosity * 0.3;
-
-    // Connect population density sensor (index 7 in 12-sensor system) to movement (avoid crowds)
-    brain.setWeight(0, 7, 1, 0, -explorationStrength); // Move away from crowds
-    brain.setWeight(0, 7, 1, 1, explorationStrength); // Random direction
-
-    // Use vision ray sensors for exploration too (indices 8-11)
-    brain.setWeight(0, 8, 1, 0, explorationStrength * 0.2); // Forward vision
-    brain.setWeight(0, 9, 1, 1, explorationStrength * 0.2); // Left vision
-
-    // Add bias for gentle movement
-    brain.setBias(1, 0, explorationStrength * 0.5);
-    brain.setBias(1, 1, explorationStrength * 0.5);
-  }
-
-  /**
-   * Encode food seeking behavior based on dietary preferences
-   */
-  private static encodeFoodSeeking(
-    brain: NeuralNetwork,
-    genetics: CreatureGenetics
-  ): void {
-    // Food type preference affects response strength
-    const plantPreference = genetics.plantPreference;
-    const meatPreference = genetics.meatPreference;
-
-    // Food type sensor (0 = plant, 1 = meat) influences food seeking
-    // If creature prefers plants, respond more to food type = 0
-    // If creature prefers meat, respond more to food type = 1
-
-    const foodTypeWeight = (meatPreference - plantPreference) * 0.4;
-    brain.setWeight(0, 1, 1, 0, -foodTypeWeight); // Food type to movement X
-    brain.setWeight(0, 1, 1, 1, foodTypeWeight); // Food type to movement Y
-
-    // Food distance affects movement strength
-    brain.setWeight(0, 0, 1, 0, -0.5); // Close food = move toward
-    brain.setWeight(0, 0, 1, 1, -0.3); // Close food = move toward
   }
 
   /**

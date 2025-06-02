@@ -26,6 +26,7 @@ import {
   PRESET_BIOMES,
   Carrion,
 } from "./environmentTypes";
+import { simulationLogger, LogCategory } from "../logging/simulationLogger";
 
 export class Environment {
   // Core configuration
@@ -267,51 +268,78 @@ export class Environment {
       };
     }
 
-    // Calculate combat success probability (hybrid approach)
-    const successChance = this.calculateCombatSuccess(
+    // Calculate combat success chance based on size and aggression
+    const combatSuccess = this.calculateCombatSuccess(
       attacker,
       defender,
       attackPower
     );
-    const success = Math.random() < successChance;
 
-    let damage = 0;
-    let energyGain = 0;
-    const energyLoss = 2 + attackPower * 3; // Energy cost scales with attack power
-
-    if (success) {
-      // Calculate damage based on size and aggression
-      damage = attackPower * attacker.genetics.size * 25; // Scale damage
+    if (Math.random() < combatSuccess) {
+      // Attack succeeds
+      const damage = attackPower * 20; // Scale damage
       defender.physics.health = Math.max(0, defender.physics.health - damage);
 
-      // If defender dies, attacker gains energy (predation)
-      if (defender.physics.health <= 0) {
-        defender.state = CreatureState.Dead;
-        energyGain = defender.genetics.size * 30; // Energy from successful predation
-        attacker.physics.energy = Math.min(
-          100,
-          attacker.physics.energy + energyGain
-        );
+      // 👊 COMBAT SUCCESS LOGGING
+      simulationLogger.logCombat(
+        attacker.id,
+        defender.id,
+        true,
+        damage,
+        defender.physics.health
+      );
 
-        // Update statistics
-        attacker.stats.attacksGiven++;
-        defender.stats.attacksReceived++;
-      }
+      // Update statistics
+      attacker.stats.attacksGiven++;
+      defender.stats.attacksReceived++;
+
+      const energyLoss = 2 + attackPower * 3; // Energy cost for attacking
+      attacker.physics.energy = Math.max(
+        0,
+        attacker.physics.energy - energyLoss
+      );
+
+      return {
+        attacker,
+        defender,
+        attackPower,
+        distance: this.calculateDistance(
+          attacker.physics.position,
+          defender.physics.position
+        ),
+        success: true,
+        damage,
+        energyLoss,
+      };
+    } else {
+      // Attack fails
+      simulationLogger.logCombat(
+        attacker.id,
+        defender.id,
+        false,
+        0,
+        defender.physics.health
+      );
+
+      const energyLoss = 1 + attackPower; // Small energy cost for failed attack
+      attacker.physics.energy = Math.max(
+        0,
+        attacker.physics.energy - energyLoss
+      );
+
+      return {
+        attacker,
+        defender,
+        attackPower,
+        distance: this.calculateDistance(
+          attacker.physics.position,
+          defender.physics.position
+        ),
+        success: false,
+        damage: 0,
+        energyLoss,
+      };
     }
-
-    // Attacker always loses energy for attacking
-    attacker.physics.energy = Math.max(0, attacker.physics.energy - energyLoss);
-
-    return {
-      attacker,
-      defender,
-      attackPower,
-      distance,
-      success,
-      damage,
-      energyGain,
-      energyLoss,
-    };
   }
 
   /**
@@ -378,6 +406,14 @@ export class Environment {
     // Update creature statistics
     creature.stats.foodEaten++;
 
+    // 🍽️ FEEDING SUCCESS LOGGING
+    simulationLogger.logFeeding(
+      creature.id,
+      food.type,
+      energyGain,
+      creature.physics.energy
+    );
+
     // Remove consumed food or carrion 🦴
     this.removeFromSpatialGrid(food);
 
@@ -398,6 +434,33 @@ export class Environment {
       energyGain,
       foodConsumed: true,
     };
+  }
+
+  /**
+   * Get all consumable food entities (regular food + carrion) for visualization
+   */
+  public getAllFood(): ConsumableEntity[] {
+    const regularFood = Array.from(this.food.values());
+    const carrion = Array.from(this.entities.values()).filter(
+      (e) => e.type === EntityType.Carrion
+    ) as Carrion[];
+    return [...regularFood, ...carrion];
+  }
+
+  /**
+   * Get only carrion entities for advanced visualization
+   */
+  public getCarrion(): Carrion[] {
+    return Array.from(this.entities.values()).filter(
+      (e) => e.type === EntityType.Carrion
+    ) as Carrion[];
+  }
+
+  /**
+   * Get only regular food entities (no carrion)
+   */
+  public getRegularFood(): FoodEntity[] {
+    return Array.from(this.food.values());
   }
 
   /**
@@ -571,6 +634,11 @@ export class Environment {
 
     for (const food of this.food.values()) {
       this.addToSpatialGrid(food);
+    }
+
+    // 🚨 FIX: Add entities (including carrion) to spatial grid!
+    for (const entity of this.entities.values()) {
+      this.addToSpatialGrid(entity);
     }
 
     for (const env of this.environmental.values()) {

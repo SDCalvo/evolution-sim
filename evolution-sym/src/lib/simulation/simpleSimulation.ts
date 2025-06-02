@@ -7,6 +7,7 @@ import { Environment } from "../environment/environment";
 import { Creature } from "../creatures/creature";
 import { GeneticsHelper } from "../creatures/creatureTypes";
 import { BiomeType } from "../environment/environmentTypes";
+import { simulationLogger, LogCategory } from "../logging/simulationLogger";
 
 export interface SimpleSimulationConfig {
   initialPopulation: number;
@@ -253,20 +254,29 @@ export class SimpleSimulation {
   public start(): void {
     if (this.isRunning) return;
     this.isRunning = true;
-
-    // Initialize tracking
     this.startTime = Date.now();
+    this.currentTick = 0;
     this.initialCreatureCount = this.environment.getCreatures().length;
     this.peakCreatureCount = this.initialCreatureCount;
     this.events = [];
     this.creatureSnapshots.clear();
     this.brainDecisions = [];
     this.actionAttempts.clear();
+    this.updateTimes = [];
+
+    // Initialize logger
+    simulationLogger.clear();
+    simulationLogger.setTick(this.currentTick);
 
     // Take initial snapshots
     for (const creature of this.environment.getCreatures()) {
       this.creatureSnapshots.set(creature.id, creature);
     }
+
+    simulationLogger.success(
+      LogCategory.SYSTEM,
+      `Simulation started with ${this.initialCreatureCount} creatures`
+    );
 
     this.simulationLoop();
   }
@@ -286,6 +296,9 @@ export class SimpleSimulation {
 
     // 🚀 THE KEY FIX: Update simulation AND call creature AI updates!
     this.currentTick++;
+
+    // Update logger tick
+    simulationLogger.setTick(this.currentTick);
 
     // Get all creatures and update them individually
     const creatures = this.environment.getCreatures();
@@ -461,6 +474,23 @@ export class SimpleSimulation {
     // Detect deaths
     for (const [id, creature] of this.creatureSnapshots) {
       if (!currentIds.has(id)) {
+        // 💀 DEATH ANALYSIS LOGGING
+        const deathCause =
+          creature.physics.energy <= 0
+            ? "starvation"
+            : creature.physics.health <= 0
+            ? "combat"
+            : creature.physics.age >= creature.genetics.lifespan
+            ? "old_age"
+            : "unknown";
+
+        simulationLogger.logDeath(
+          id,
+          creature.stats.age,
+          deathCause,
+          creature.stats.fitness
+        );
+
         this.events.push({
           tick: this.currentTick,
           type: "death",
@@ -468,10 +498,96 @@ export class SimpleSimulation {
           details: {
             age: creature.stats.age,
             fitness: creature.stats.fitness,
-            cause: creature.physics.energy <= 0 ? "starvation" : "age",
+            cause: deathCause,
+            foodEaten: creature.stats.foodEaten,
+            offspring: creature.stats.offspring,
           },
         });
       }
+    }
+
+    // 📊 POPULATION HEALTH LOGGING (every 100 ticks)
+    if (this.currentTick % 100 === 0) {
+      const avgEnergy =
+        currentCount > 0
+          ? currentCreatures.reduce((sum, c) => sum + c.physics.energy, 0) /
+            currentCount
+          : 0;
+      const avgAge =
+        currentCount > 0
+          ? currentCreatures.reduce((sum, c) => sum + c.physics.age, 0) /
+            currentCount
+          : 0;
+      const envStats = this.environment.getStats();
+
+      simulationLogger.logPopulationHealth(
+        this.currentTick,
+        currentCount,
+        avgEnergy,
+        avgAge,
+        envStats.totalFood
+      );
+
+      // 🚨 CRITICAL WARNINGS
+      if (currentCount <= 3) {
+        simulationLogger.critical(
+          LogCategory.POPULATION,
+          `Population near extinction! Only ${currentCount} creatures left`
+        );
+      }
+      if (avgEnergy < 20) {
+        simulationLogger.critical(
+          LogCategory.POPULATION,
+          `Population energy crisis! Average energy: ${avgEnergy.toFixed(1)}`
+        );
+      }
+      if (envStats.totalFood === 0) {
+        simulationLogger.critical(
+          LogCategory.ENVIRONMENT,
+          `No food in environment! Starvation imminent`
+        );
+      }
+    }
+
+    // 🧠 BRAIN DECISION ANALYSIS (every 200 ticks)
+    if (this.currentTick % 200 === 0 && this.brainDecisions.length > 0) {
+      const recentDecisions = this.brainDecisions.slice(-100); // Last 100 decisions
+      const actionCounts = {
+        eating: 0,
+        moving: 0,
+        reproducing: 0,
+        attacking: 0,
+        idle: 0,
+      };
+
+      recentDecisions.forEach((decision) => {
+        const actions = decision.actions;
+        const maxAction = Math.max(
+          actions.eat,
+          actions.attack,
+          actions.reproduce,
+          Math.abs(actions.moveX) + Math.abs(actions.moveY)
+        );
+
+        if (maxAction === actions.eat && actions.eat > 0.5)
+          actionCounts.eating++;
+        else if (maxAction === actions.attack && actions.attack > 0.7)
+          actionCounts.attacking++;
+        else if (maxAction === actions.reproduce && actions.reproduce > 0.6)
+          actionCounts.reproducing++;
+        else if (Math.abs(actions.moveX) + Math.abs(actions.moveY) > 0.1)
+          actionCounts.moving++;
+        else actionCounts.idle++;
+      });
+
+      const total = recentDecisions.length;
+      simulationLogger.logBrainDecisions(
+        (actionCounts.moving / total) * 100,
+        (actionCounts.eating / total) * 100,
+        (actionCounts.reproducing / total) * 100,
+        (actionCounts.attacking / total) * 100,
+        (actionCounts.idle / total) * 100
+      );
     }
 
     // Update creature snapshots
