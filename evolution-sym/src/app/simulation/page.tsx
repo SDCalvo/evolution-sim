@@ -17,7 +17,7 @@ const Container = styled.div`
 `;
 
 const InnerContainer = styled.div`
-  max-width: 1200px;
+  max-width: 1400px;
   margin: 0 auto;
   padding: 1.5rem 1rem;
 `;
@@ -54,9 +54,46 @@ const InfoIcon = styled.div`
   color: #60a5fa;
   cursor: help;
   transition: color 0.2s;
+  position: relative;
 
   &:hover {
     color: #93c5fd;
+  }
+
+  &:hover::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    bottom: calc(100% + 0.5rem);
+    left: 50%;
+    transform: translateX(-50%);
+    background: #1f2937;
+    color: white;
+    padding: 1.25rem;
+    border-radius: 0.75rem;
+    font-size: 0.875rem;
+    white-space: pre-line;
+    max-width: 500px;
+    min-width: 300px;
+    width: max-content;
+    z-index: 1000;
+    border: 1px solid #4b5563;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+    pointer-events: none;
+    line-height: 1.6;
+    text-align: left;
+    font-family: inherit;
+  }
+
+  &:hover::before {
+    content: "";
+    position: absolute;
+    bottom: calc(100% + 0.125rem);
+    left: 50%;
+    transform: translateX(-50%);
+    border: 4px solid transparent;
+    border-top-color: #1f2937;
+    z-index: 1001;
+    pointer-events: none;
   }
 
   svg {
@@ -76,8 +113,8 @@ const MainGrid = styled.div`
   grid-template-columns: 1fr;
   gap: 1.5rem;
 
-  @media (min-width: 1024px) {
-    grid-template-columns: 3fr 1fr;
+  @media (min-width: 1200px) {
+    grid-template-columns: 2fr 1fr;
   }
 `;
 
@@ -87,6 +124,9 @@ const CanvasSection = styled.div`
   padding: 1.5rem;
   border: 1px solid #4b5563;
   box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 `;
 
 const SectionHeader = styled.div`
@@ -244,8 +284,8 @@ export default function SimulationPage() {
   const config: SimpleSimulationConfig = {
     initialPopulation: 10,
     maxPopulation: 50,
-    worldWidth: 600,
-    worldHeight: 600,
+    worldWidth: 800,
+    worldHeight: 800,
     targetFPS: 30,
   };
 
@@ -273,7 +313,21 @@ export default function SimulationPage() {
         <Header>
           <TitleContainer>
             <Title>🧬 Evolution Simulation</Title>
-            <InfoIcon title="AI Evolution Simulation - Creatures have neural network brains, 14 genetic traits control behavior, natural selection drives evolution, real-time ecosystem dynamics">
+            <InfoIcon
+              data-tooltip="🧬 AI Evolution Simulation
+
+🤖 Neural Network Brains
+   Each creature has its own AI
+
+🧪 14 Genetic Traits  
+   Control behavior & appearance
+
+🌱 Natural Selection
+   Survival of the fittest
+
+⚡ Real-time Ecosystem
+   Dynamic environment"
+            >
               <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path
                   strokeLinecap="round"
@@ -293,7 +347,27 @@ export default function SimulationPage() {
           <CanvasSection>
             <SectionHeader>
               <SectionTitle>🌍 Digital Ecosystem</SectionTitle>
-              <InfoIcon title="Visual Guide - Blue creatures (color = genetics), Green plant food (stationary), Yellow small prey (moving), Brown carrion (decaying remains), White energy glow around creatures, Purple AI thought bubbles">
+              <InfoIcon
+                data-tooltip="🌍 Visual Guide
+
+🔵 Blue Creatures
+   Color shows genetics/species
+
+🟢 Green Plant Food
+   Stationary nutrition source
+
+🟡 Yellow Small Prey
+   Moving food (chase required)
+
+🟤 Brown Carrion
+   Decaying remains from deaths
+
+⚪ White Energy Glow
+   Shows creature health
+
+🟣 Purple Thought Bubbles
+   AI decision-making"
+              >
                 <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path
                     strokeLinecap="round"
@@ -349,7 +423,26 @@ export default function SimulationPage() {
                 <CardContent>
                   <SectionHeader>
                     <CardTitle>📊 Live Stats</CardTitle>
-                    <InfoIcon title="Real-time Metrics - Population: Living creatures, Fitness: Average creature fitness, Food: Available nutrition items, UPS: Updates per second (performance)">
+                    <InfoIcon
+                      data-tooltip="📊 Real-time Metrics
+
+👥 Population
+   Number of living creatures
+
+💪 Fitness
+   Average creature survival score
+
+🍃 Food Items
+   Available nutrition in world
+
+⚡ UPS
+   Updates per second (performance)
+
+Higher UPS = Better performance:
+🟢 Green dot = Excellent (>25 UPS)
+🟡 Yellow dot = Good (15-25 UPS)  
+🔴 Red dot = Slow (<15 UPS)"
+                    >
                       <svg
                         fill="none"
                         stroke="currentColor"
@@ -390,7 +483,32 @@ export default function SimulationPage() {
               <CardContent>
                 <SectionHeader>
                   <CardTitle>📋 Logs</CardTitle>
-                  <InfoIcon title="Event Logging - Creature births and deaths, Feeding and combat events, Brain decision analysis, Population dynamics, Debug information">
+                  <InfoIcon
+                    data-tooltip="📋 Event Logging System
+
+🐣 Birth Events
+   New creature spawns
+
+💀 Death Events
+   Creature deaths & causes
+
+🍽️ Feeding Events
+   Food consumption
+
+⚔️ Combat Events
+   Creature battles
+
+🧠 Brain Analysis
+   AI decision logging
+
+📈 Population Dynamics
+   Ecosystem changes
+
+🔧 Debug Information
+   Technical details
+
+All events are timestamped and categorized"
+                  >
                     <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path
                         strokeLinecap="round"
@@ -411,7 +529,24 @@ export default function SimulationPage() {
               <CardContent>
                 <SectionHeader>
                   <CardTitle>⚙️ Config</CardTitle>
-                  <InfoIcon title="Simulation Parameters - Population: Starting → Maximum, World Size: Canvas dimensions, Target FPS: Simulation speed, Biome: Environmental type">
+                  <InfoIcon
+                    data-tooltip="⚙️ Simulation Parameters
+
+👥 Population
+   10 → 50 creatures max
+
+🌍 World Size
+   800×800 pixel canvas
+
+🎯 Target FPS
+   30 updates per second
+
+🌿 Biome Type
+   Grassland environment
+
+These settings control the simulation's
+behavior and performance"
+                  >
                     <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path
                         strokeLinecap="round"
@@ -432,7 +567,7 @@ export default function SimulationPage() {
                   <ConfigRow>
                     <ConfigLabel>World:</ConfigLabel>
                     <ConfigValue>
-                      {config.worldWidth}×{config.worldHeight}
+                      {config.worldWidth}×{config.worldHeight}px
                     </ConfigValue>
                   </ConfigRow>
                   <ConfigRow>
@@ -453,7 +588,37 @@ export default function SimulationPage() {
               <CardContent>
                 <SectionHeader>
                   <CardTitle>🧬 Features</CardTitle>
-                  <InfoIcon title="Evolution System - Active Features: Neural network AI brains, 14-trait genetic inheritance, Environmental perception, Carrion scavenging system, Visual species differentiation, Comprehensive event logging. In Development: Sexual reproduction mechanics, Advanced species tracking">
+                  <InfoIcon
+                    data-tooltip="🧬 Evolution System
+
+✅ ACTIVE FEATURES:
+
+🧠 Neural AI
+   Individual brain networks
+
+🧪 Genetics
+   14-trait inheritance system
+
+👁️ Sensors
+   Environmental perception
+
+🦴 Carrion
+   Scavenging decomposed creatures
+
+🎨 Visual Differentiation
+   Species coloring
+
+📝 Event Logging
+   Comprehensive tracking
+
+⏳ IN DEVELOPMENT:
+
+💕 Sexual Reproduction
+   Mate selection
+
+🏷️ Species Tracking
+   Advanced genealogy"
+                  >
                     <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path
                         strokeLinecap="round"

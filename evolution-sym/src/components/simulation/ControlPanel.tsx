@@ -38,9 +38,46 @@ const InfoIcon = styled.div`
   color: #60a5fa;
   cursor: help;
   transition: color 0.2s;
+  position: relative;
 
   &:hover {
     color: #93c5fd;
+  }
+
+  &:hover::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    bottom: calc(100% + 0.5rem);
+    left: 50%;
+    transform: translateX(-50%);
+    background: #1f2937;
+    color: white;
+    padding: 1.25rem;
+    border-radius: 0.75rem;
+    font-size: 0.875rem;
+    white-space: pre-line;
+    max-width: 500px;
+    min-width: 300px;
+    width: max-content;
+    z-index: 1000;
+    border: 1px solid #4b5563;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+    pointer-events: none;
+    line-height: 1.6;
+    text-align: left;
+    font-family: inherit;
+  }
+
+  &:hover::before {
+    content: "";
+    position: absolute;
+    bottom: calc(100% + 0.125rem);
+    left: 50%;
+    transform: translateX(-50%);
+    border: 4px solid transparent;
+    border-top-color: #1f2937;
+    z-index: 1001;
+    pointer-events: none;
   }
 
   svg {
@@ -206,7 +243,32 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
     <Container>
       <Header>
         <Title>🎮 Controls</Title>
-        <InfoIcon title="Simulation Controls - Start/Pause: Begin or halt evolution, Reset: Generate new random population, Status indicator shows current state">
+        <InfoIcon
+          data-tooltip="🎮 Simulation Controls
+
+▶️ Start Evolution
+   Begin natural selection
+
+⏸️ Pause Simulation
+   Temporarily halt evolution
+
+🔄 Reset Population
+   Generate new random creatures
+
+🟢 Status Indicator
+   Shows current simulation state
+
+🎯 Performance Indicators:
+
+🟢 Green dot
+   Excellent performance (>25 UPS)
+
+🟡 Yellow dot
+   Good performance (15-25 UPS)
+
+🔴 Red dot
+   Slow performance (<15 UPS)"
+        >
           <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path
               strokeLinecap="round"
