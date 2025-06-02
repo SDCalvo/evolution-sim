@@ -47,6 +47,7 @@ export interface CreatureStats {
   generation: number; // 0+: How many generations from original population
   ticksAlive: number;
   foodEaten: number;
+  feedingAttempts: number; // NEW: Track feeding attempts separately from successes
   distanceTraveled: number;
   attacksReceived: number;
   attacksGiven: number;

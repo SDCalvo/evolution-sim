@@ -10,6 +10,7 @@
  */
 
 import { Environment } from "../environment/environment";
+import { EntityType } from "../environment/environmentTypes";
 import { Creature } from "../creatures/creature";
 import {
   CreatureGenetics,
@@ -19,7 +20,6 @@ import {
 } from "../creatures/creatureTypes";
 import { BiomePresets } from "../environment/biomePresets";
 import { NeuralNetwork } from "../neural/network";
-import { BootstrapBrainFactory } from "../creatures/bootstrapBrains";
 
 export interface SimulationConfig {
   // Population settings
@@ -88,7 +88,7 @@ export interface SimulationEvent {
   tick: number;
   creatureId?: string;
   speciesId?: string;
-  data?: any;
+  data?: unknown;
 }
 
 export class SimulationManager {
@@ -146,32 +146,28 @@ export class SimulationManager {
   }
 
   /**
-   * Create initial population with bootstrap brains
+   * Initialize starting population of creatures
    */
   private initializePopulation(): void {
     console.log(
-      `🧬 Creating initial population of ${this.config.initialPopulation} creatures...`
+      `🧬 Initializing population of ${this.config.initialPopulation} creatures...`
     );
 
     for (let i = 0; i < this.config.initialPopulation; i++) {
+      // Generate random genetics
       const genetics = GeneticsHelper.generateRandomGenetics();
-      const brain = BootstrapBrainFactory.createFounderBrain(genetics); // Start with survival instincts
 
-      // Random position in world
+      // Random position within world bounds
       const position = {
-        x:
-          Math.random() * this.config.worldWidth * 0.8 +
-          this.config.worldWidth * 0.1,
-        y:
-          Math.random() * this.config.worldHeight * 0.8 +
-          this.config.worldHeight * 0.1,
+        x: 50 + Math.random() * (this.config.worldWidth - 100),
+        y: 50 + Math.random() * (this.config.worldHeight - 100),
       };
 
+      // Create creature with generation 0
       const creature = new Creature(
-        `founder_${i}`,
-        genetics,
-        brain,
         0, // Generation 0
+        genetics,
+        undefined, // No parents
         position
       );
 
@@ -270,8 +266,6 @@ export class SimulationManager {
    * Process creature lifecycle events
    */
   private processLifecycle(): void {
-    const envStats = this.environment.getStats();
-
     // Handle deaths and create carrion
     // (Environment already handles this in its update method)
 
@@ -339,10 +333,9 @@ export class SimulationManager {
     const childGeneration =
       Math.max(parent1.stats.generation, parent2.stats.generation) + 1;
     const child = new Creature(
-      `gen${childGeneration}_${this.creatureIdCounter++}`,
-      childGenetics,
-      childBrain,
       childGeneration,
+      childGenetics,
+      [parent1, parent2], // Parents array
       childPosition
     );
 
@@ -394,7 +387,7 @@ export class SimulationManager {
     // Only run species detection every 60 ticks for performance
     if (this.currentTick % 60 !== 0) return;
 
-    const allCreatures = this.environment.getAllCreatures();
+    const allCreatures = this.environment.getCreatures();
 
     // Clear previous species data
     this.detectedSpecies.clear();
@@ -449,16 +442,10 @@ export class SimulationManager {
       const color = CreatureColorSystem.getCreatureColor(
         representative.genetics
       );
-      const colorDescription = CreatureColorSystem.getColorDescription(
-        representative.genetics
-      );
 
       const speciesInfo: SpeciesInfo = {
         id: speciesId,
-        name: this.generateSpeciesName(
-          representative.genetics,
-          colorDescription
-        ),
+        name: this.generateSpeciesName(representative.genetics),
         color,
         population: group.length,
         averageFitness,
@@ -475,10 +462,7 @@ export class SimulationManager {
   /**
    * Generate a descriptive name for a species
    */
-  private generateSpeciesName(
-    genetics: CreatureGenetics,
-    colorDescription: string
-  ): string {
+  private generateSpeciesName(genetics: CreatureGenetics): string {
     const adjectives: string[] = [];
     const nouns: string[] = [];
 
@@ -553,10 +537,12 @@ export class SimulationManager {
    * Check if we should advance to the next generation
    */
   private checkGenerationAdvancement(): void {
-    const allCreatures = this.environment.getAllCreatures();
+    const allCreatures = this.environment.getCreatures();
     const averageGeneration =
-      allCreatures.reduce((sum, c) => sum + c.stats.generation, 0) /
-      allCreatures.length;
+      allCreatures.reduce(
+        (sum: number, c: Creature) => sum + c.stats.generation,
+        0
+      ) / allCreatures.length;
 
     // Advance generation when average generation increases significantly
     if (averageGeneration > this.currentGeneration + 0.5) {
@@ -625,13 +611,14 @@ export class SimulationManager {
    */
   public getStats(): SimulationStats {
     const envStats = this.environment.getStats();
-    const allCreatures = this.environment.getAllCreatures();
+    const allCreatures = this.environment.getCreatures();
 
     // Calculate fitness statistics
-    const fitnessValues = allCreatures.map((c) => c.stats.fitness);
+    const fitnessValues = allCreatures.map((c: Creature) => c.stats.fitness);
     const averageFitness =
       fitnessValues.length > 0
-        ? fitnessValues.reduce((sum, f) => sum + f, 0) / fitnessValues.length
+        ? fitnessValues.reduce((sum: number, f: number) => sum + f, 0) /
+          fitnessValues.length
         : 0;
     const maxFitness =
       fitnessValues.length > 0 ? Math.max(...fitnessValues) : 0;
@@ -674,7 +661,7 @@ export class SimulationManager {
     // Find dominant species
     let dominantSpecies: string | null = null;
     let maxPopulation = 0;
-    for (const [id, species] of this.detectedSpecies) {
+    for (const [, species] of this.detectedSpecies) {
       if (species.population > maxPopulation) {
         maxPopulation = species.population;
         dominantSpecies = species.name;
@@ -732,14 +719,29 @@ export class SimulationManager {
    * Get all creatures (for visualization)
    */
   public getCreatures(): Creature[] {
-    return this.environment.getAllCreatures();
+    return this.environment.getCreatures();
   }
 
   /**
    * Get all food items (for visualization)
    */
-  public getAllFood(): any[] {
-    return this.environment.getAllFood();
+  public getAllFood(): unknown[] {
+    // Note: Environment doesn't have getAllFood method - this would need to be implemented
+    const query = this.environment.queryNearbyEntities({
+      position: {
+        x: this.config.worldWidth / 2,
+        y: this.config.worldHeight / 2,
+      },
+      radius: Math.max(this.config.worldWidth, this.config.worldHeight),
+      entityTypes: [
+        EntityType.PlantFood,
+        EntityType.SmallPrey,
+        EntityType.MushroomFood,
+        EntityType.Carrion,
+      ],
+      maxResults: 1000,
+    });
+    return query.food;
   }
 
   /**

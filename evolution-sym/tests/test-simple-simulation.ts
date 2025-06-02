@@ -50,10 +50,10 @@ try {
   });
 
   // Test simulation for a few ticks
-  console.log("\n🚀 Starting simulation for 1 second...");
+  console.log("\n🚀 Starting simulation for 10 seconds...");
   simulation.start();
 
-  // Let it run for a short time
+  // Run for 10 seconds to see behaviors develop
   setTimeout(() => {
     simulation.stop();
 
@@ -79,7 +79,7 @@ try {
     });
 
     console.log("\n🎉 Simple simulation test completed successfully!");
-  }, 1000); // Run for 1 second
+  }, 10000);
 } catch (error) {
   console.error("❌ Simple simulation test failed:");
   console.error(error);

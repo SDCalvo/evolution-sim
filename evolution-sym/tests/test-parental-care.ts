@@ -83,18 +83,20 @@ console.log("⚖️ TRADE-OFF DEMONSTRATION:\n");
 
 // Test reproduction at different life stages (give K-strategy enough energy)
 const stats: CreatureStats = {
-  energy: 95, // Higher energy for K-strategy testing
-  health: 90,
-  age: 130, // Old enough for K-strategy maturity
-  generation: 1,
-  ticksAlive: 130,
-  foodEaten: 10,
-  distanceTraveled: 500,
-  attacksReceived: 2,
-  attacksGiven: 1,
+  energy: 100,
+  health: 100,
+  age: 0,
+  generation: 0,
+  ticksAlive: 0,
+  foodEaten: 0,
+  feedingAttempts: 0,
+  distanceTraveled: 0,
+  attacksReceived: 0,
+  attacksGiven: 0,
   reproductionAttempts: 0,
   offspring: 0,
-  fitness: 50,
+  fitness: 0,
+  thoughtHistory: [],
 };
 
 console.log("🔬 REPRODUCTION COMPARISON:");

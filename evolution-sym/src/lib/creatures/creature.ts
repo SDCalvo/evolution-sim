@@ -133,7 +133,7 @@ export class Creature {
     this.act(decisions, environment);
 
     // 4. Update physics and internal state
-    this.updatePhysics();
+    this.updatePhysics(environment);
     this.updateInternalState();
 
     // 5. Check survival conditions
@@ -650,13 +650,13 @@ export class Creature {
   /**
    * Update physics state
    */
-  private updatePhysics(): void {
+  private updatePhysics(environment?: Environment): void {
     // Apply velocity to position
     this.physics.position.x += this.physics.velocity.x;
     this.physics.position.y += this.physics.velocity.y;
 
     // Apply boundary wrapping (creatures appear on opposite side when going out of bounds)
-    this.applyBoundaryWrapping();
+    this.applyBoundaryWrapping(environment);
 
     // Apply drag
     this.physics.velocity.x *= 0.95;
@@ -706,13 +706,13 @@ export class Creature {
   }
 
   /**
-   * Placeholder action methods (to be implemented with environment)
-   */
-  /**
    * Attempt to feed on nearby food - NOW INCLUDES CARRION! 🦴
    */
   private attemptEating(environment?: Environment): void {
     if (!environment) return;
+
+    // Always track feeding attempts (even if unsuccessful)
+    this.stats.feedingAttempts++;
 
     // Query for nearby food AND carrion! 🦴
     const query: SpatialQuery = {
@@ -833,7 +833,7 @@ export class Creature {
   /**
    * Check if creature can reproduce
    */
-  private canReproduce(): boolean {
+  public canReproduce(): boolean {
     return (
       this.isMateable &&
       this.reproductionCooldown === 0 &&
@@ -915,6 +915,7 @@ export class Creature {
       offspring: 0,
       fitness: 0,
       thoughtHistory: [],
+      feedingAttempts: 0,
     };
   }
 
@@ -1069,15 +1070,14 @@ export class Creature {
    * Apply boundary wrapping to keep creatures in world bounds
    * Creatures bounce off boundaries naturally instead of disappearing
    */
-  private applyBoundaryWrapping(): void {
-    // Default world bounds (1000x1000) - ideally this should come from environment
-    const worldWidth = 1000;
-    const worldHeight = 1000;
-
-    // Circular world boundary wrapping
-    const centerX = worldWidth / 2;
-    const centerY = worldHeight / 2;
-    const maxRadius = Math.min(worldWidth, worldHeight) / 2;
+  private applyBoundaryWrapping(environment?: Environment): void {
+    // Get world bounds from environment if available
+    const worldWidth = environment?.bounds.width || 1000;
+    const worldHeight = environment?.bounds.height || 1000;
+    const centerX = environment?.bounds.centerX || worldWidth / 2;
+    const centerY = environment?.bounds.centerY || worldHeight / 2;
+    const maxRadius =
+      environment?.bounds.radius || Math.min(worldWidth, worldHeight) / 2;
 
     const dx = this.physics.position.x - centerX;
     const dy = this.physics.position.y - centerY;
@@ -1086,7 +1086,7 @@ export class Creature {
     // If creature is outside the circular boundary, bounce back
     if (distance > maxRadius) {
       // Push creature back to just inside the boundary
-      const scale = maxRadius / distance;
+      const scale = (maxRadius - 5) / distance; // Leave 5px margin
       this.physics.position.x = centerX + dx * scale;
       this.physics.position.y = centerY + dy * scale;
 

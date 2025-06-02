@@ -294,6 +294,7 @@ export class SimpleSimulation {
       // Track creature behavior before update
       const beforeStats = {
         foodEaten: creature.stats.foodEaten,
+        feedingAttempts: creature.stats.feedingAttempts,
         reproductionAttempts: creature.stats.reproductionAttempts,
         energy: creature.physics.energy,
       };
@@ -306,6 +307,16 @@ export class SimpleSimulation {
         // Limit decision history to prevent memory issues (keep last 1000 decisions)
         if (this.brainDecisions.length > 1000) {
           this.brainDecisions.shift();
+        }
+
+        // Log thoughts in real-time (every 30 ticks to avoid spam)
+        if (this.currentTick % 30 === 0 && creature.stats.currentThought) {
+          const thought = creature.stats.currentThought;
+          console.log(
+            `💭 ${creature.id.substring(0, 8)}: "${thought.text}" ${
+              thought.icon
+            } (energy: ${creature.physics.energy.toFixed(1)})`
+          );
         }
       }); // Each creature thinks and acts!
 
@@ -967,6 +978,7 @@ export class SimpleSimulation {
     creature: Creature,
     beforeStats: {
       foodEaten: number;
+      feedingAttempts: number;
       reproductionAttempts: number;
       energy: number;
     }
@@ -988,9 +1000,15 @@ export class SimpleSimulation {
 
     const stats = this.actionAttempts.get(creatureId)!;
 
-    // Detect feeding attempts and success
+    // Track feeding attempts (regardless of success)
+    if (creature.stats.feedingAttempts > beforeStats.feedingAttempts) {
+      const newAttempts =
+        creature.stats.feedingAttempts - beforeStats.feedingAttempts;
+      stats.feeding += newAttempts; // Count all attempts
+    }
+
+    // Track feeding successes separately
     if (creature.stats.foodEaten > beforeStats.foodEaten) {
-      stats.feeding++;
       stats.feedingSuccess++;
 
       this.events.push({

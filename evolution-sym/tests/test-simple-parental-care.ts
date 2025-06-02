@@ -64,11 +64,20 @@ console.log(`🎯 PREDICTION: ${comparison.prediction}\n`);
 
 // Test reproduction
 const stats: CreatureStats = {
-  energy: 95,
+  energy: 80,
   health: 90,
-  age: 130,
-  fitness: 50,
+  age: 100,
   generation: 1,
+  ticksAlive: 100,
+  foodEaten: 5,
+  feedingAttempts: 8,
+  distanceTraveled: 200,
+  attacksReceived: 1,
+  attacksGiven: 0,
+  reproductionAttempts: 2,
+  offspring: 1,
+  fitness: 25,
+  thoughtHistory: [],
 };
 
 const rReproduction = ParentalCareHelper.calculateReproduction(

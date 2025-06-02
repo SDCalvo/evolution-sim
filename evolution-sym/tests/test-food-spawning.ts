@@ -3,7 +3,7 @@
  */
 
 import { Environment } from "../src/lib/environment/environment";
-import { BiomeType } from "../src/lib/environment/environmentTypes";
+import { BiomeType, EntityType } from "../src/lib/environment/environmentTypes";
 
 function testFoodSpawning() {
   console.log("🍃 FOOD SPAWNING DEBUG");
@@ -17,6 +17,7 @@ function testFoodSpawning() {
       shape: "circular",
       centerX: 500,
       centerY: 500,
+      radius: 500, // Add missing radius
     },
     biome: {
       type: BiomeType.Grassland,
@@ -55,7 +56,12 @@ function testFoodSpawning() {
   const allFood = environment.queryNearbyEntities({
     position: { x: 500, y: 500 },
     radius: 2000, // Very large radius to get ALL food
-    entityTypes: [0, 1, 2, 3, 4, 5], // Try all possible entity types
+    entityTypes: [
+      EntityType.PlantFood,
+      EntityType.SmallPrey,
+      EntityType.MushroomFood,
+      EntityType.Carrion,
+    ], // Use proper EntityType enum values
     maxResults: 100,
     sortByDistance: true,
   });
@@ -86,7 +92,11 @@ function testFoodSpawning() {
   const smallQuery = environment.queryNearbyEntities({
     position: testPosition,
     radius: 100,
-    entityTypes: [0, 1, 2], // Food types
+    entityTypes: [
+      EntityType.PlantFood,
+      EntityType.SmallPrey,
+      EntityType.MushroomFood,
+    ], // Use proper enum values
     maxResults: 10,
     sortByDistance: true,
   });
@@ -96,7 +106,11 @@ function testFoodSpawning() {
   const mediumQuery = environment.queryNearbyEntities({
     position: testPosition,
     radius: 300,
-    entityTypes: [0, 1, 2], // Food types
+    entityTypes: [
+      EntityType.PlantFood,
+      EntityType.SmallPrey,
+      EntityType.MushroomFood,
+    ], // Use proper enum values
     maxResults: 10,
     sortByDistance: true,
   });
@@ -105,7 +119,15 @@ function testFoodSpawning() {
 
   // Check if the issue is with entity types
   console.log("\n🏷️ Testing different entity types...");
-  for (let type = 0; type <= 10; type++) {
+  const entityTypes = [
+    EntityType.PlantFood,
+    EntityType.SmallPrey,
+    EntityType.MushroomFood,
+    EntityType.Carrion,
+    EntityType.Obstacle,
+  ];
+
+  entityTypes.forEach((type) => {
     const typeQuery = environment.queryNearbyEntities({
       position: testPosition,
       radius: 2000,
@@ -119,11 +141,15 @@ function testFoodSpawning() {
       typeQuery.creatures.length > 0 ||
       typeQuery.environmental.length > 0
     ) {
+      const typeName =
+        Object.keys(EntityType).find(
+          (key) => EntityType[key as keyof typeof EntityType] === type
+        ) || "Unknown";
       console.log(
-        `   Type ${type}: ${typeQuery.food.length} food, ${typeQuery.creatures.length} creatures, ${typeQuery.environmental.length} env`
+        `   Type ${typeName} (${type}): ${typeQuery.food.length} food, ${typeQuery.creatures.length} creatures, ${typeQuery.environmental.length} env`
       );
     }
-  }
+  });
 }
 
 testFoodSpawning();
