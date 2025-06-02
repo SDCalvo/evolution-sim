@@ -328,7 +328,7 @@ export class Environment {
     );
 
     // Check if creature is close enough to feed
-    const maxRange = creature.physics.collisionRadius + food.size;
+    const maxRange = creature.physics.collisionRadius + food.size + 50;
     if (distance > maxRange) {
       return {
         creature,
@@ -509,8 +509,13 @@ export class Environment {
   }
 
   private processCreatureInteractions(): void {
-    // This will be called from creature.update() when creatures attempt actions
-    // The actual interaction processing happens through processCombat() and processFeeding()
+    // Update all living creatures - this is where AI brains make decisions!
+    for (const creature of this.creatures.values()) {
+      if (creature.state === CreatureState.Alive) {
+        // Pass environment reference so creatures can query for food, threats, etc.
+        creature.update(this);
+      }
+    }
   }
 
   private spawnEntities(): void {

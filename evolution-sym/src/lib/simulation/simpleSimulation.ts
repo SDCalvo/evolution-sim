@@ -201,6 +201,7 @@ export class SimpleSimulation {
         shape: "circular",
         centerX: config.worldWidth / 2,
         centerY: config.worldHeight / 2,
+        radius: Math.min(config.worldWidth, config.worldHeight) / 2,
       },
       biome: {
         type: BiomeType.Grassland,

@@ -4,6 +4,7 @@ import React, { useRef, useEffect, useState } from "react";
 import {
   SimpleSimulation,
   SimpleSimulationConfig,
+  SimpleSimulationStats,
 } from "../../lib/simulation/simpleSimulation";
 import { Creature } from "../../lib/creatures/creature";
 import { CreatureColorSystem } from "../../lib/creatures/creatureTypes";
@@ -13,7 +14,7 @@ interface SimulationCanvasProps {
   height: number;
   config: SimpleSimulationConfig;
   isRunning: boolean;
-  onStatsUpdate?: (stats: any) => void;
+  onStatsUpdate?: (stats: SimpleSimulationStats) => void;
 }
 
 export const SimulationCanvas: React.FC<SimulationCanvasProps> = ({
@@ -182,11 +183,93 @@ export const SimulationCanvas: React.FC<SimulationCanvasProps> = ({
         ctx.stroke();
       }
 
+      // Draw thought bubble if creature has a current thought
+      if (
+        creature.stats.currentThought &&
+        creature.stats.currentThought.duration > 0
+      ) {
+        const thought = creature.stats.currentThought;
+
+        // Position bubble above creature
+        const bubbleX = x;
+        const bubbleY = y - size - 25;
+
+        // Bubble dimensions
+        const bubbleWidth = Math.max(60, thought.text.length * 4);
+        const bubbleHeight = 20;
+        const bubbleRadius = 8;
+
+        // Draw bubble background
+        ctx.fillStyle = `${thought.color}dd`; // Add transparency
+        ctx.strokeStyle = thought.color;
+        ctx.lineWidth = 1;
+
+        // Rounded rectangle for bubble (with fallback for older browsers)
+        ctx.beginPath();
+        if (ctx.roundRect) {
+          ctx.roundRect(
+            bubbleX - bubbleWidth / 2,
+            bubbleY - bubbleHeight / 2,
+            bubbleWidth,
+            bubbleHeight,
+            bubbleRadius
+          );
+        } else {
+          // Fallback: simple rectangle
+          ctx.rect(
+            bubbleX - bubbleWidth / 2,
+            bubbleY - bubbleHeight / 2,
+            bubbleWidth,
+            bubbleHeight
+          );
+        }
+        ctx.fill();
+        ctx.stroke();
+
+        // Draw bubble tail pointing to creature
+        ctx.fillStyle = thought.color;
+        ctx.beginPath();
+        ctx.moveTo(bubbleX - 8, bubbleY + bubbleHeight / 2);
+        ctx.lineTo(bubbleX + 8, bubbleY + bubbleHeight / 2);
+        ctx.lineTo(bubbleX, bubbleY + bubbleHeight / 2 + 8);
+        ctx.closePath();
+        ctx.fill();
+
+        // Draw thought text
+        ctx.fillStyle = "#ffffff";
+        ctx.font = "10px Arial";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+
+        // Draw icon first if available
+        if (thought.icon) {
+          ctx.font = "12px Arial";
+          ctx.fillText(thought.icon, bubbleX - bubbleWidth / 4, bubbleY);
+
+          // Then draw text
+          ctx.font = "8px Arial";
+          ctx.fillText(
+            thought.text.slice(0, 12) + (thought.text.length > 12 ? "..." : ""),
+            bubbleX + bubbleWidth / 6,
+            bubbleY
+          );
+        } else {
+          // Just draw text
+          ctx.font = "9px Arial";
+          ctx.fillText(
+            thought.text.slice(0, 15) + (thought.text.length > 15 ? "..." : ""),
+            bubbleX,
+            bubbleY
+          );
+        }
+      }
+
       // Draw creature ID (for debugging)
       if (size > 8) {
         ctx.fillStyle = "rgba(255, 255, 255, 0.8)";
         ctx.font = "8px monospace";
         ctx.textAlign = "center";
+        ctx.textBaseline = "top";
         ctx.fillText(creature.id.slice(-3), x, y - size - 5);
       }
     });

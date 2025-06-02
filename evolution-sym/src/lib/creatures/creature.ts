@@ -717,7 +717,7 @@ export class Creature {
     // Query for nearby food AND carrion! 🦴
     const query: SpatialQuery = {
       position: this.physics.position,
-      radius: this.physics.collisionRadius + 50, // Search radius based on size
+      radius: this.physics.collisionRadius + 100, // INCREASED: Better feeding reach
       entityTypes: [
         EntityType.PlantFood,
         EntityType.SmallPrey,
@@ -1071,28 +1071,78 @@ export class Creature {
    * Creatures bounce off boundaries naturally instead of disappearing
    */
   private applyBoundaryWrapping(environment?: Environment): void {
-    // Get world bounds from environment if available
-    const worldWidth = environment?.bounds.width || 1000;
-    const worldHeight = environment?.bounds.height || 1000;
-    const centerX = environment?.bounds.centerX || worldWidth / 2;
-    const centerY = environment?.bounds.centerY || worldHeight / 2;
-    const maxRadius =
-      environment?.bounds.radius || Math.min(worldWidth, worldHeight) / 2;
+    if (!environment || !environment.bounds) {
+      // Fallback to basic rectangular bounds if no environment
+      this.physics.position.x = Math.max(
+        10,
+        Math.min(990, this.physics.position.x)
+      );
+      this.physics.position.y = Math.max(
+        10,
+        Math.min(990, this.physics.position.y)
+      );
+      return;
+    }
 
-    const dx = this.physics.position.x - centerX;
-    const dy = this.physics.position.y - centerY;
-    const distance = Math.sqrt(dx * dx + dy * dy);
+    // Get world bounds from environment
+    const bounds = environment.bounds;
+    const worldWidth = bounds.width || 1000;
+    const worldHeight = bounds.height || 1000;
+    const centerX = bounds.centerX ?? worldWidth / 2;
+    const centerY = bounds.centerY ?? worldHeight / 2;
 
-    // If creature is outside the circular boundary, bounce back
-    if (distance > maxRadius) {
-      // Push creature back to just inside the boundary
-      const scale = (maxRadius - 5) / distance; // Leave 5px margin
-      this.physics.position.x = centerX + dx * scale;
-      this.physics.position.y = centerY + dy * scale;
+    // Handle circular bounds (preferred for simulation)
+    if (bounds.shape === "circular" && bounds.radius) {
+      const maxRadius = bounds.radius;
+      const dx = this.physics.position.x - centerX;
+      const dy = this.physics.position.y - centerY;
+      const distance = Math.sqrt(dx * dx + dy * dy);
 
-      // Reverse velocity to create bouncing effect
-      this.physics.velocity.x *= -0.5; // Damped bounce
-      this.physics.velocity.y *= -0.5;
+      // If creature is outside the circular boundary, push it back inside
+      if (distance > maxRadius - 10) {
+        // 10px safety margin
+        // Calculate the direction from center to creature
+        const angle = Math.atan2(dy, dx);
+
+        // Place creature just inside the boundary
+        const safeRadius = maxRadius - 15; // Ensure it's well inside
+        this.physics.position.x = centerX + Math.cos(angle) * safeRadius;
+        this.physics.position.y = centerY + Math.sin(angle) * safeRadius;
+
+        // Reflect velocity off the boundary (like bouncing off a wall)
+        const normalX = dx / distance; // Normal vector pointing outward
+        const normalY = dy / distance;
+
+        // Reflect velocity: v' = v - 2(v·n)n
+        const dotProduct =
+          this.physics.velocity.x * normalX + this.physics.velocity.y * normalY;
+        this.physics.velocity.x -= 2 * dotProduct * normalX * 0.7; // 0.7 damping
+        this.physics.velocity.y -= 2 * dotProduct * normalY * 0.7;
+      }
+    } else {
+      // Handle rectangular bounds as fallback
+      const margin = 10;
+      const leftBound = margin;
+      const rightBound = worldWidth - margin;
+      const topBound = margin;
+      const bottomBound = worldHeight - margin;
+
+      // Clamp position to bounds
+      if (this.physics.position.x < leftBound) {
+        this.physics.position.x = leftBound;
+        this.physics.velocity.x = Math.abs(this.physics.velocity.x) * 0.7; // Bounce right
+      } else if (this.physics.position.x > rightBound) {
+        this.physics.position.x = rightBound;
+        this.physics.velocity.x = -Math.abs(this.physics.velocity.x) * 0.7; // Bounce left
+      }
+
+      if (this.physics.position.y < topBound) {
+        this.physics.position.y = topBound;
+        this.physics.velocity.y = Math.abs(this.physics.velocity.y) * 0.7; // Bounce down
+      } else if (this.physics.position.y > bottomBound) {
+        this.physics.position.y = bottomBound;
+        this.physics.velocity.y = -Math.abs(this.physics.velocity.y) * 0.7; // Bounce up
+      }
     }
   }
 
