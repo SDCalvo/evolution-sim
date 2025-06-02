@@ -20,7 +20,13 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${inter.variable} antialiased font-sans`}>
+      <body
+        className={inter.variable}
+        style={{
+          WebkitFontSmoothing: "antialiased",
+          fontFamily: "ui-sans-serif, system-ui, sans-serif",
+        }}
+      >
         <StyledComponentsRegistry>{children}</StyledComponentsRegistry>
       </body>
     </html>

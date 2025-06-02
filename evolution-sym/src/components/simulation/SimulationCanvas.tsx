@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useRef, useEffect, useState } from "react";
+import styled from "styled-components";
 import {
   SimpleSimulation,
   SimpleSimulationConfig,
@@ -8,6 +9,53 @@ import {
 } from "../../lib/simulation/simpleSimulation";
 import { Creature } from "../../lib/creatures/creature";
 import { CreatureColorSystem } from "../../lib/creatures/creatureTypes";
+
+// Styled Components
+const CanvasContainer = styled.div`
+  position: relative;
+`;
+
+const SimulationCanvasElement = styled.canvas`
+  border: 1px solid #4b5563;
+  border-radius: 0.5rem;
+  background: #111827;
+  image-rendering: pixelated;
+`;
+
+const LoadingOverlay = styled.div`
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(17, 24, 39, 0.75);
+  border-radius: 0.5rem;
+`;
+
+const LoadingContent = styled.div`
+  color: white;
+  text-align: center;
+`;
+
+const LoadingSpinner = styled.div`
+  animation: spin 1s linear infinite;
+  border-radius: 50%;
+  height: 2rem;
+  width: 2rem;
+  border: 2px solid transparent;
+  border-bottom-color: white;
+  margin: 0 auto 0.5rem;
+
+  @keyframes spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+`;
+
+const LoadingText = styled.p`
+  margin: 0;
+`;
 
 interface SimulationCanvasProps {
   width: number;
@@ -364,23 +412,17 @@ export const SimulationCanvas: React.FC<SimulationCanvasProps> = ({
   };
 
   return (
-    <div className="relative">
-      <canvas
-        ref={canvasRef}
-        width={width}
-        height={height}
-        className="border border-gray-600 rounded-lg bg-gray-900"
-        style={{ imageRendering: "pixelated" }}
-      />
+    <CanvasContainer>
+      <SimulationCanvasElement ref={canvasRef} width={width} height={height} />
 
       {!isInitialized && (
-        <div className="absolute inset-0 flex items-center justify-center bg-gray-900 bg-opacity-75 rounded-lg">
-          <div className="text-white text-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white mx-auto mb-2"></div>
-            <p>Initializing simulation...</p>
-          </div>
-        </div>
+        <LoadingOverlay>
+          <LoadingContent>
+            <LoadingSpinner />
+            <LoadingText>Initializing simulation...</LoadingText>
+          </LoadingContent>
+        </LoadingOverlay>
       )}
-    </div>
+    </CanvasContainer>
   );
 };
