@@ -53,6 +53,10 @@ export interface CreatureStats {
   reproductionAttempts: number;
   offspring: number;
   fitness: number; // Calculated survival score
+
+  // Thought tracking
+  currentThought?: CreatureThought; // What the creature is currently thinking
+  thoughtHistory: CreatureThought[]; // Recent thoughts for analysis
 }
 
 /**
@@ -513,4 +517,12 @@ export interface CreatureJSON {
   physics: CreaturePhysics;
   stats: CreatureStats;
   brain: NetworkData;
+}
+
+export interface CreatureThought {
+  text: string;
+  priority: number; // Higher priority thoughts override lower ones
+  duration: number; // How long to display (in ticks)
+  color: string; // Color of the thought bubble
+  icon?: string; // Optional emoji/icon
 }

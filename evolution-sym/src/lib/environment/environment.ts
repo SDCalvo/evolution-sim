@@ -541,12 +541,17 @@ export class Environment {
   }
 
   private cleanupEntities(): void {
-    // Remove dead creatures
+    // Remove dead creatures (use proper removeCreature method to create carrion)
+    const deadCreatureIds: string[] = [];
     for (const [id, creature] of this.creatures) {
       if (creature.state === CreatureState.Dead) {
-        this.removeFromSpatialGrid(creature);
-        this.creatures.delete(id);
+        deadCreatureIds.push(id);
       }
+    }
+
+    // Remove using proper method that creates carrion
+    for (const id of deadCreatureIds) {
+      this.removeCreature(id);
     }
   }
 

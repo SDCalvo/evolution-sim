@@ -20,6 +20,7 @@
     "demo:carrion": "ts-node tests/demo-carrion-evolution.ts",
     "test:carrion": "ts-node tests/test-carrion-clean.ts",
     "test:simulation": "ts-node tests/test-simple-simulation.ts",
+    "test:thoughts": "npx tsx tests/test-thought-bubbles.ts",
     "test:all": "npm run test:neuron && npm run test:layer && npm run test:network && npm run test:parental-care && npm run test:bootstrap && npm run test:creature && npm run test:environment && npm run test:integration"
   },
   "dependencies": {

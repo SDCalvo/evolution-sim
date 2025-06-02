@@ -23,6 +23,7 @@ import {
   HSLColor,
   CreatureStats,
   CreatureJSON,
+  CreatureThought,
 } from "./creatureTypes";
 import { Environment } from "../environment/environment";
 import {
@@ -90,7 +91,23 @@ export class Creature {
   /**
    * Main simulation update - called every tick
    */
-  public update(environment?: Environment): void {
+  public update(
+    environment?: Environment,
+    brainTracker?: (decision: {
+      creatureId: string;
+      sensorInputs: number[];
+      brainOutputs: number[];
+      actions: {
+        moveX: number;
+        moveY: number;
+        eat: number;
+        attack: number;
+        reproduce: number;
+      };
+      energy: number;
+      tick: number;
+    }) => void
+  ): void {
     if (this.state !== CreatureState.Alive) return;
 
     // 1. Sense environment (12 sensors)
@@ -99,7 +116,20 @@ export class Creature {
     // 2. Think with AI brain
     const decisions = this.think(sensorData);
 
-    // 3. Act on decisions
+    // 3. Report brain decision to tracker (if provided)
+    if (brainTracker) {
+      const brainOutputs = this.brain.process(sensorData); // Get raw neural network outputs
+      brainTracker({
+        creatureId: this.id,
+        sensorInputs: [...sensorData],
+        brainOutputs: [...brainOutputs],
+        actions: { ...decisions },
+        energy: this.physics.energy,
+        tick: 0, // Will be set by simulation
+      });
+    }
+
+    // 4. Act on decisions
     this.act(decisions, environment);
 
     // 4. Update physics and internal state
@@ -330,6 +360,9 @@ export class Creature {
     // Apply movement (trait-modified)
     this.applyMovement(actions.moveX, actions.moveY);
 
+    // Generate thoughts based on decisions and state
+    this.generateThoughts(actions, environment);
+
     // Attempt eating if strong signal
     if (actions.eat > 0.5) {
       this.attemptEating(environment);
@@ -347,6 +380,252 @@ export class Creature {
   }
 
   /**
+   * Generate thoughts based on brain decisions and current state
+   */
+  private generateThoughts(
+    actions: CreatureActions,
+    environment?: Environment
+  ): void {
+    const thoughts: CreatureThought[] = [];
+
+    // Energy-based thoughts
+    if (this.physics.energy < 30) {
+      thoughts.push({
+        text: "I'm starving!",
+        priority: 10,
+        duration: 30,
+        color: "#ff4444",
+        icon: "🍽️",
+      });
+    } else if (this.physics.energy < 50) {
+      thoughts.push({
+        text: "Getting hungry...",
+        priority: 5,
+        duration: 20,
+        color: "#ffaa44",
+        icon: "🤔",
+      });
+    }
+
+    // Action-based thoughts
+    if (actions.eat > 0.7) {
+      thoughts.push({
+        text: "Food detected!",
+        priority: 8,
+        duration: 25,
+        color: "#44ff44",
+        icon: "🍃",
+      });
+    } else if (actions.eat > 0.5) {
+      thoughts.push({
+        text: "Searching for food...",
+        priority: 6,
+        duration: 20,
+        color: "#88ff88",
+        icon: "👀",
+      });
+    }
+
+    if (actions.reproduce > 0.8 && this.canReproduce()) {
+      thoughts.push({
+        text: "Looking for a mate!",
+        priority: 9,
+        duration: 40,
+        color: "#ff69b4",
+        icon: "💕",
+      });
+    } else if (actions.reproduce > 0.6) {
+      thoughts.push({
+        text: "Feeling romantic...",
+        priority: 7,
+        duration: 30,
+        color: "#ffb6c1",
+        icon: "💘",
+      });
+    }
+
+    if (actions.attack > 0.8) {
+      thoughts.push({
+        text: "FIGHT!",
+        priority: 12,
+        duration: 20,
+        color: "#ff0000",
+        icon: "⚔️",
+      });
+    } else if (actions.attack > 0.5) {
+      thoughts.push({
+        text: "Feeling aggressive...",
+        priority: 6,
+        duration: 15,
+        color: "#ff6666",
+        icon: "😤",
+      });
+    }
+
+    // Movement-based thoughts
+    const movement = Math.abs(actions.moveX) + Math.abs(actions.moveY);
+    if (movement > 1.5) {
+      thoughts.push({
+        text: "Running fast!",
+        priority: 4,
+        duration: 10,
+        color: "#4488ff",
+        icon: "💨",
+      });
+    } else if (movement > 0.8) {
+      thoughts.push({
+        text: "Exploring...",
+        priority: 3,
+        duration: 15,
+        color: "#88aaff",
+        icon: "🧭",
+      });
+    }
+
+    // Age-based thoughts
+    if (this.physics.age > this.genetics.lifespan * 0.8) {
+      thoughts.push({
+        text: "I'm getting old...",
+        priority: 3,
+        duration: 60,
+        color: "#888888",
+        icon: "👴",
+      });
+    } else if (
+      this.physics.age > this.genetics.maturityAge &&
+      !this.isMateable
+    ) {
+      thoughts.push({
+        text: "I'm mature now!",
+        priority: 5,
+        duration: 100,
+        color: "#ffdd44",
+        icon: "🌟",
+      });
+    }
+
+    // Health-based thoughts
+    if (this.physics.health < 50) {
+      thoughts.push({
+        text: "I'm hurt...",
+        priority: 8,
+        duration: 50,
+        color: "#aa4444",
+        icon: "🩹",
+      });
+    }
+
+    // Environmental awareness thoughts
+    if (environment) {
+      const nearbyQuery = {
+        position: this.physics.position,
+        radius: this.physics.collisionRadius + 100,
+        entityTypes: [
+          EntityType.PlantFood,
+          EntityType.SmallPrey,
+          EntityType.MushroomFood,
+          EntityType.Carrion,
+        ],
+        maxResults: 10,
+        sortByDistance: true,
+        excludeCreature: this,
+      };
+
+      try {
+        const nearby = environment.queryNearbyEntities(nearbyQuery);
+
+        if (nearby.creatures.length > 3) {
+          thoughts.push({
+            text: "Crowded here!",
+            priority: 4,
+            duration: 20,
+            color: "#ffaa00",
+            icon: "🏃",
+          });
+        }
+
+        if (nearby.food.length === 0 && this.physics.energy < 60) {
+          thoughts.push({
+            text: "No food around...",
+            priority: 6,
+            duration: 30,
+            color: "#ff8800",
+            icon: "😟",
+          });
+        }
+      } catch {
+        // Ignore query errors for thought generation
+      }
+    }
+
+    // Special combination thoughts
+    if (
+      this.physics.energy > 80 &&
+      this.canReproduce() &&
+      actions.reproduce > 0.7
+    ) {
+      thoughts.push({
+        text: "Ready to start a family!",
+        priority: 11,
+        duration: 50,
+        color: "#ff1493",
+        icon: "👨‍👩‍👧‍👦",
+      });
+    }
+
+    if (this.physics.energy < 20 && actions.eat > 0.8) {
+      thoughts.push({
+        text: "MUST FIND FOOD NOW!",
+        priority: 15,
+        duration: 40,
+        color: "#ff0000",
+        icon: "🆘",
+      });
+    }
+
+    // Default exploration thought if nothing else
+    if (thoughts.length === 0 && movement > 0.2) {
+      thoughts.push({
+        text: "Wandering around...",
+        priority: 1,
+        duration: 20,
+        color: "#aaaaaa",
+        icon: "🚶",
+      });
+    }
+
+    // Select the highest priority thought
+    if (thoughts.length > 0) {
+      const newThought = thoughts.reduce((best, current) =>
+        current.priority > best.priority ? current : best
+      );
+
+      // Only update if it's a higher priority than current thought or current thought expired
+      if (
+        !this.stats.currentThought ||
+        newThought.priority > this.stats.currentThought.priority ||
+        this.stats.currentThought.duration <= 0
+      ) {
+        this.stats.currentThought = newThought;
+
+        // Add to thought history (keep last 10)
+        this.stats.thoughtHistory.push(newThought);
+        if (this.stats.thoughtHistory.length > 10) {
+          this.stats.thoughtHistory.shift();
+        }
+      }
+    }
+
+    // Decrease current thought duration
+    if (this.stats.currentThought) {
+      this.stats.currentThought.duration--;
+      if (this.stats.currentThought.duration <= 0) {
+        this.stats.currentThought = undefined;
+      }
+    }
+  }
+
+  /**
    * Apply movement based on neural network decision and genetics
    */
   private applyMovement(moveX: number, moveY: number): void {
@@ -357,9 +636,9 @@ export class Creature {
     this.physics.velocity.x = moveX * speed;
     this.physics.velocity.y = moveY * speed;
 
-    // Energy cost for movement (bigger creatures cost more)
+    // Energy cost for movement (bigger creatures cost more, frame-rate independent)
     const movementCost =
-      (Math.abs(moveX) + Math.abs(moveY)) * this.genetics.size * 0.1;
+      (Math.abs(moveX) + Math.abs(moveY)) * this.genetics.size * 0.003; // Reduced by ~33x for high FPS
     this.physics.energy = Math.max(0, this.physics.energy - movementCost);
 
     // Update rotation for vision rays
@@ -375,6 +654,9 @@ export class Creature {
     // Apply velocity to position
     this.physics.position.x += this.physics.velocity.x;
     this.physics.position.y += this.physics.velocity.y;
+
+    // Apply boundary wrapping (creatures appear on opposite side when going out of bounds)
+    this.applyBoundaryWrapping();
 
     // Apply drag
     this.physics.velocity.x *= 0.95;
@@ -395,8 +677,9 @@ export class Creature {
     this.physics.age++;
     this.stats.ticksAlive++;
 
-    // Natural energy decay based on efficiency
-    const decayRate = (2 - this.genetics.efficiency) * 0.1;
+    // Natural energy decay based on efficiency (frame-rate independent)
+    // Target: lose ~10 energy per second at 60 FPS with efficiency 1.0
+    const decayRate = (2 - this.genetics.efficiency) * 0.0027; // Reduced by ~37x for high FPS
     this.physics.energy = Math.max(0, this.physics.energy - decayRate);
 
     // Update maturity status
@@ -631,6 +914,7 @@ export class Creature {
       reproductionAttempts: 0,
       offspring: 0,
       fitness: 0,
+      thoughtHistory: [],
     };
   }
 
@@ -779,6 +1063,37 @@ export class Creature {
     const dx = pos1.x - pos2.x;
     const dy = pos1.y - pos2.y;
     return Math.sqrt(dx * dx + dy * dy);
+  }
+
+  /**
+   * Apply boundary wrapping to keep creatures in world bounds
+   * Creatures bounce off boundaries naturally instead of disappearing
+   */
+  private applyBoundaryWrapping(): void {
+    // Default world bounds (1000x1000) - ideally this should come from environment
+    const worldWidth = 1000;
+    const worldHeight = 1000;
+
+    // Circular world boundary wrapping
+    const centerX = worldWidth / 2;
+    const centerY = worldHeight / 2;
+    const maxRadius = Math.min(worldWidth, worldHeight) / 2;
+
+    const dx = this.physics.position.x - centerX;
+    const dy = this.physics.position.y - centerY;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+
+    // If creature is outside the circular boundary, bounce back
+    if (distance > maxRadius) {
+      // Push creature back to just inside the boundary
+      const scale = maxRadius / distance;
+      this.physics.position.x = centerX + dx * scale;
+      this.physics.position.y = centerY + dy * scale;
+
+      // Reverse velocity to create bouncing effect
+      this.physics.velocity.x *= -0.5; // Damped bounce
+      this.physics.velocity.y *= -0.5;
+    }
   }
 
   /**
