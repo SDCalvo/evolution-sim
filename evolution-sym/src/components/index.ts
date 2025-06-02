@@ -5,9 +5,9 @@
 // export { default as Button } from './ui/Button';
 // export { default as Card } from './ui/Card';
 
-// Simulation components will be exported here as we create them
-// export { default as SimulationCanvas } from './simulation/SimulationCanvas';
-// export { default as SimulationControls } from './simulation/SimulationControls';
+// Simulation components
+export { SimulationCanvas } from "./simulation/SimulationCanvas";
+export { ControlPanel } from "./simulation/ControlPanel";
 
 // Chart components will be exported here as we create them
 // export { default as FitnessChart } from './charts/FitnessChart';

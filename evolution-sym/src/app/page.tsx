@@ -57,19 +57,27 @@ export default function Home() {
           </div>
 
           <div className="text-center bg-gray-800/30 rounded-lg p-8 border border-gray-600">
-            <h3 className="text-2xl font-semibold mb-4">🚧 Coming Soon</h3>
+            <h3 className="text-2xl font-semibold mb-4">
+              🎉 Ready to Explore!
+            </h3>
             <p className="text-gray-300 mb-6">
-              We&apos;re building this step by step, starting with neural
-              networks from scratch. Follow along as we implement each component
-              and learn how evolution works!
+              Our evolution simulation is now live! Watch AI creatures with
+              neural network brains evolve through natural selection in a
+              digital ecosystem.
             </p>
-            <div className="text-sm text-gray-400 space-y-1">
+            <div className="text-sm text-gray-400 space-y-1 mb-6">
               <p>✅ Phase 1: Project Setup</p>
-              <p>🔄 Phase 2: Neural Networks (Next)</p>
-              <p>⏳ Phase 3: Creatures & Environment</p>
-              <p>⏳ Phase 4: Genetic Algorithms</p>
-              <p>⏳ Phase 5: Full Evolution Simulation</p>
+              <p>✅ Phase 2: Neural Networks from Scratch</p>
+              <p>✅ Phase 3: Creatures & Environment</p>
+              <p>✅ Phase 4: Real-time Visualization</p>
+              <p>🔄 Phase 5: Advanced Evolution Features</p>
             </div>
+            <a
+              href="/simulation"
+              className="inline-block px-8 py-3 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold rounded-lg transition-all transform hover:scale-105"
+            >
+              🚀 Launch Simulation
+            </a>
           </div>
         </main>
       </div>
