@@ -233,16 +233,22 @@ export class SimpleSimulation {
   }
 
   private initializePopulation(): void {
+    // 🎯 SPAWN CREATURES CLOSER TOGETHER FOR EASIER MATING
+    const centerX = this.config.worldWidth / 2;
+    const centerY = this.config.worldHeight / 2;
+    const spawnRadius =
+      Math.min(this.config.worldWidth, this.config.worldHeight) * 0.3; // 30% of world size
+
     for (let i = 0; i < this.config.initialPopulation; i++) {
       const genetics = GeneticsHelper.generateRandomGenetics();
 
+      // Spawn in a clustered circle around center for easier social interaction
+      const angle = Math.random() * Math.PI * 2;
+      const distance = Math.random() * spawnRadius;
+
       const position = {
-        x:
-          Math.random() * this.config.worldWidth * 0.8 +
-          this.config.worldWidth * 0.1,
-        y:
-          Math.random() * this.config.worldHeight * 0.8 +
-          this.config.worldHeight * 0.1,
+        x: centerX + Math.cos(angle) * distance,
+        y: centerY + Math.sin(angle) * distance,
       };
 
       const creature = new Creature(0, genetics, undefined, position);
@@ -331,6 +337,44 @@ export class SimpleSimulation {
               thought.icon
             } (energy: ${creature.physics.energy.toFixed(1)})`
           );
+        }
+
+        // 🗺️ BRAIN OUTPUT DEBUGGING: Log neural network outputs
+        if (this.currentTick % 100 === 0 && decision.tick % 100 === 0) {
+          const pos = creature.physics.position;
+          const vel = creature.physics.velocity;
+          const moveMagnitude = Math.sqrt(
+            decision.actions.moveX ** 2 + decision.actions.moveY ** 2
+          );
+
+          // 🧠 ALWAYS log brain outputs to debug why no movement
+          console.log(
+            `🧠 ${creature.id.substring(0, 8)}: ` +
+              `RAW[${decision.brainOutputs
+                .map((x) => x.toFixed(2))
+                .join(",")}] ` +
+              `ACTIONS[X:${decision.actions.moveX.toFixed(
+                2
+              )} Y:${decision.actions.moveY.toFixed(2)} ` +
+              `E:${decision.actions.eat.toFixed(
+                2
+              )} A:${decision.actions.attack.toFixed(
+                2
+              )} R:${decision.actions.reproduce.toFixed(2)}] ` +
+              `pos(${pos.x.toFixed(0)},${pos.y.toFixed(0)}) vel(${vel.x.toFixed(
+                2
+              )},${vel.y.toFixed(2)})`
+          );
+
+          // Log movement separately if it exists
+          if (moveMagnitude > 0.05) {
+            console.log(
+              `🚶 MOVEMENT: ${creature.id.substring(
+                0,
+                8
+              )} magnitude=${moveMagnitude.toFixed(3)}`
+            );
+          }
         }
       }); // Each creature thinks and acts!
 
@@ -562,22 +606,53 @@ export class SimpleSimulation {
 
       recentDecisions.forEach((decision) => {
         const actions = decision.actions;
+
+        // 🔧 FIXED: Fair comparison - normalize movement to single value like others
+        const movementMagnitude = Math.sqrt(
+          actions.moveX * actions.moveX + actions.moveY * actions.moveY
+        ); // 0-√2 ≈ 0-1.4
+        const normalizedMovement = movementMagnitude / 1.414; // Normalize to 0-1 range
+
+        // Now all actions are in 0-1 range for fair comparison
         const maxAction = Math.max(
           actions.eat,
           actions.attack,
           actions.reproduce,
-          Math.abs(actions.moveX) + Math.abs(actions.moveY)
+          normalizedMovement
         );
 
-        if (maxAction === actions.eat && actions.eat > 0.5)
-          actionCounts.eating++;
-        else if (maxAction === actions.attack && actions.attack > 0.7)
-          actionCounts.attacking++;
-        else if (maxAction === actions.reproduce && actions.reproduce > 0.6)
-          actionCounts.reproducing++;
-        else if (Math.abs(actions.moveX) + Math.abs(actions.moveY) > 0.1)
-          actionCounts.moving++;
-        else actionCounts.idle++;
+        // 🎯 FIXED: Classify based on PRIMARY action, but recognize movement
+        const isMoving = normalizedMovement > 0.15; // Lower threshold for movement detection
+        const isEating = actions.eat > 0.5;
+        const isReproducing = actions.reproduce > 0.3;
+        const isAttacking = actions.attack > 0.7;
+
+        // If creature is doing multiple things, classify by the strongest
+        if (isEating && isMoving && actions.eat > normalizedMovement) {
+          actionCounts.eating++; // Moving to eat
+        } else if (
+          isReproducing &&
+          isMoving &&
+          actions.reproduce > normalizedMovement
+        ) {
+          actionCounts.reproducing++; // Moving to reproduce
+        } else if (
+          isAttacking &&
+          isMoving &&
+          actions.attack > normalizedMovement
+        ) {
+          actionCounts.attacking++; // Moving to attack
+        } else if (isMoving) {
+          actionCounts.moving++; // Pure movement/exploration
+        } else if (isEating) {
+          actionCounts.eating++; // Stationary eating
+        } else if (isReproducing) {
+          actionCounts.reproducing++; // Stationary reproduction attempt
+        } else if (isAttacking) {
+          actionCounts.attacking++; // Stationary attacking
+        } else {
+          actionCounts.idle++; // Truly idle
+        }
       });
 
       const total = recentDecisions.length;
@@ -1234,7 +1309,7 @@ export class SimpleSimulation {
         actionCounts.eating++;
       } else if (maxAction === actions.attack && actions.attack > 0.7) {
         actionCounts.attacking++;
-      } else if (maxAction === actions.reproduce && actions.reproduce > 0.6) {
+      } else if (maxAction === actions.reproduce && actions.reproduce > 0.3) {
         actionCounts.reproducing++;
       } else if (Math.abs(actions.moveX) + Math.abs(actions.moveY) > 0.1) {
         actionCounts.movement++;

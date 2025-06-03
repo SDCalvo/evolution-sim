@@ -374,8 +374,8 @@ export class Creature {
       this.attemptAttack(environment);
     }
 
-    // Attempt reproduction if conditions met
-    if (actions.reproduce > 0.6 && this.canReproduce()) {
+    // Attempt reproduction if conditions met (LOWERED THRESHOLD from 0.6 to 0.3)
+    if (actions.reproduce > 0.3 && this.canReproduce()) {
       this.attemptReproduction(environment);
     } else if (
       this.isMateable &&
@@ -384,7 +384,7 @@ export class Creature {
       // 🚫 DEBUG: Log why reproduction isn't happening
       if (this.stats.reproductionAttempts % 60 === 0) {
         const reasons = [];
-        if (actions.reproduce <= 0.6)
+        if (actions.reproduce <= 0.3)
           reasons.push(`weak signal: ${actions.reproduce.toFixed(2)}`);
         if (!this.canReproduce()) {
           if (this.reproductionCooldown > 0)
@@ -882,12 +882,35 @@ export class Creature {
     }
 
     for (const potentialMate of results.creatures) {
+      // 🔍 DETAILED MATE ANALYSIS
+      const sameSpecies = this.isSameSpecies(potentialMate);
+      const mateCanReproduce = potentialMate.canReproduce();
+      const mateIsMature =
+        potentialMate.physics.age >= potentialMate.genetics.maturityAge;
+
+      // Log detailed mate checking (every 60 ticks to avoid spam)
+      if (this.stats.reproductionAttempts % 60 === 0) {
+        const distance = this.calculateDistance(
+          this.physics.position,
+          potentialMate.physics.position
+        );
+        console.log(
+          `💕 ${this.id.substring(
+            0,
+            8
+          )} evaluating mate ${potentialMate.id.substring(0, 8)}:` +
+            ` distance=${distance.toFixed(
+              1
+            )} same_species=${sameSpecies} mate_can_reproduce=${mateCanReproduce} ` +
+            `mate_mature=${mateIsMature} mate_energy=${potentialMate.physics.energy.toFixed(
+              1
+            )} ` +
+            `mate_cooldown=${potentialMate.reproductionCooldown}`
+        );
+      }
+
       // Check if suitable mate (same species, mature, has energy)
-      if (
-        this.isSameSpecies(potentialMate) &&
-        potentialMate.canReproduce() &&
-        potentialMate.physics.age >= potentialMate.genetics.maturityAge
-      ) {
+      if (sameSpecies && mateCanReproduce && mateIsMature) {
         // 🎉 SUCCESS! Create offspring at nearby location
         const offspring = Creature.createOffspring(this, potentialMate);
 
@@ -911,6 +934,19 @@ export class Creature {
 
         // 🎉 SUCCESS LOG
         simulationLogger.logBirth([this.id, potentialMate.id], offspring.id);
+
+        console.log(
+          `🍼 BIRTH SUCCESS! ${this.id.substring(
+            0,
+            8
+          )} + ${potentialMate.id.substring(0, 8)} → ${offspring.id.substring(
+            0,
+            8
+          )} ` +
+            `at (${offspring.physics.position.x.toFixed(
+              0
+            )}, ${offspring.physics.position.y.toFixed(0)})`
+        );
 
         break; // Only reproduce with first suitable mate found
       }
@@ -1194,19 +1230,23 @@ export class Creature {
         const angle = Math.atan2(dy, dx);
 
         // Place creature just inside the boundary
-        const safeRadius = maxRadius - 15; // Ensure it's well inside
+        const safeRadius = maxRadius - 20; // More buffer space to prevent re-bouncing
         this.physics.position.x = centerX + Math.cos(angle) * safeRadius;
         this.physics.position.y = centerY + Math.sin(angle) * safeRadius;
 
-        // Reflect velocity off the boundary (like bouncing off a wall)
-        const normalX = dx / distance; // Normal vector pointing outward
-        const normalY = dy / distance;
+        // 🔄 IMPROVED BOUNDARY HANDLING: Add randomness to prevent loops
+        const randomAngle = (Math.random() - 0.5) * Math.PI * 0.5; // ±45° randomness
+        const newDirection = angle + Math.PI + randomAngle; // Turn around + randomness
 
-        // Reflect velocity: v' = v - 2(v·n)n
-        const dotProduct =
-          this.physics.velocity.x * normalX + this.physics.velocity.y * normalY;
-        this.physics.velocity.x -= 2 * dotProduct * normalX * 0.7; // 0.7 damping
-        this.physics.velocity.y -= 2 * dotProduct * normalY * 0.7;
+        // Set new velocity in random direction away from boundary
+        const speed = Math.sqrt(
+          this.physics.velocity.x ** 2 + this.physics.velocity.y ** 2
+        );
+        this.physics.velocity.x = Math.cos(newDirection) * speed * 0.8; // 80% speed retention
+        this.physics.velocity.y = Math.sin(newDirection) * speed * 0.8;
+
+        // Update rotation to match new direction
+        this.physics.rotation = newDirection;
       }
     } else {
       // Handle rectangular bounds as fallback
@@ -1216,21 +1256,30 @@ export class Creature {
       const topBound = margin;
       const bottomBound = worldHeight - margin;
 
-      // Clamp position to bounds
+      // Clamp position to bounds with anti-loop measures
       if (this.physics.position.x < leftBound) {
-        this.physics.position.x = leftBound;
-        this.physics.velocity.x = Math.abs(this.physics.velocity.x) * 0.7; // Bounce right
+        this.physics.position.x = leftBound + 5; // Small buffer
+        // Add randomness to prevent straight-line bouncing
+        const randomY = (Math.random() - 0.5) * 2; // Random Y component
+        this.physics.velocity.x = Math.abs(this.physics.velocity.x) * 0.6; // Bounce right (reduced)
+        this.physics.velocity.y += randomY; // Add random Y movement
       } else if (this.physics.position.x > rightBound) {
-        this.physics.position.x = rightBound;
-        this.physics.velocity.x = -Math.abs(this.physics.velocity.x) * 0.7; // Bounce left
+        this.physics.position.x = rightBound - 5; // Small buffer
+        const randomY = (Math.random() - 0.5) * 2; // Random Y component
+        this.physics.velocity.x = -Math.abs(this.physics.velocity.x) * 0.6; // Bounce left (reduced)
+        this.physics.velocity.y += randomY; // Add random Y movement
       }
 
       if (this.physics.position.y < topBound) {
-        this.physics.position.y = topBound;
-        this.physics.velocity.y = Math.abs(this.physics.velocity.y) * 0.7; // Bounce down
+        this.physics.position.y = topBound + 5; // Small buffer
+        const randomX = (Math.random() - 0.5) * 2; // Random X component
+        this.physics.velocity.y = Math.abs(this.physics.velocity.y) * 0.6; // Bounce down (reduced)
+        this.physics.velocity.x += randomX; // Add random X movement
       } else if (this.physics.position.y > bottomBound) {
-        this.physics.position.y = bottomBound;
-        this.physics.velocity.y = -Math.abs(this.physics.velocity.y) * 0.7; // Bounce up
+        this.physics.position.y = bottomBound - 5; // Small buffer
+        const randomX = (Math.random() - 0.5) * 2; // Random X component
+        this.physics.velocity.y = -Math.abs(this.physics.velocity.y) * 0.6; // Bounce up (reduced)
+        this.physics.velocity.x += randomX; // Add random X movement
       }
     }
   }

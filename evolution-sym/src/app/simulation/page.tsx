@@ -263,8 +263,8 @@ const FeatureItem = styled.div`
   color: #d1d5db;
 `;
 
-const FeatureIcon = styled.span<{ status: "active" | "pending" }>`
-  color: ${(props) => (props.status === "active" ? "#10b981" : "#f59e0b")};
+const FeatureIcon = styled.span<{ $status: "active" | "pending" }>`
+  color: ${(props) => (props.$status === "active" ? "#10b981" : "#f59e0b")};
   font-size: 0.875rem;
 `;
 
@@ -631,31 +631,31 @@ behavior and performance"
                 </SectionHeader>
                 <FeatureList>
                   <FeatureItem>
-                    <FeatureIcon status="active">✓</FeatureIcon>
+                    <FeatureIcon $status="active">✓</FeatureIcon>
                     <span>Neural AI</span>
                   </FeatureItem>
                   <FeatureItem>
-                    <FeatureIcon status="active">✓</FeatureIcon>
+                    <FeatureIcon $status="active">✓</FeatureIcon>
                     <span>Genetics</span>
                   </FeatureItem>
                   <FeatureItem>
-                    <FeatureIcon status="active">✓</FeatureIcon>
+                    <FeatureIcon $status="active">✓</FeatureIcon>
                     <span>Sensors</span>
                   </FeatureItem>
                   <FeatureItem>
-                    <FeatureIcon status="active">✓</FeatureIcon>
+                    <FeatureIcon $status="active">✓</FeatureIcon>
                     <span>Carrion</span>
                   </FeatureItem>
                   <FeatureItem>
-                    <FeatureIcon status="active">✓</FeatureIcon>
+                    <FeatureIcon $status="active">✓</FeatureIcon>
                     <span>Logging</span>
                   </FeatureItem>
                   <FeatureItem>
-                    <FeatureIcon status="pending">⏳</FeatureIcon>
+                    <FeatureIcon $status="pending">⏳</FeatureIcon>
                     <span>Sexual Repro</span>
                   </FeatureItem>
                   <FeatureItem>
-                    <FeatureIcon status="pending">⏳</FeatureIcon>
+                    <FeatureIcon $status="pending">⏳</FeatureIcon>
                     <span>Species Track</span>
                   </FeatureItem>
                 </FeatureList>

@@ -58,34 +58,55 @@ export class BootstrapBrainFactory {
     // This ensures creatures will actually DO things instead of just sitting still
 
     // 🍽️ EATING BIAS: Make creatures want to eat when energy is low
-    brain.setBias(1, 2, 3.0); // VERY STRONG bias toward eating action (increased from 2.0)
+    brain.setBias(1, 2, 5.0); // VERY STRONG bias toward eating action (increased from 3.0)
 
-    // 🏃 MOVEMENT BIAS: Make creatures move around to explore
-    brain.setBias(1, 0, 1.5); // Strong bias toward movement X
-    brain.setBias(1, 1, 1.5); // Strong bias toward movement Y
+    // 🏃 MOVEMENT BIAS: Strong enough to ensure exploration and mate-seeking
+    brain.setBias(1, 0, 2.0); // INCREASED: Strong movement bias for exploration
+    brain.setBias(1, 1, 2.0); // INCREASED: Strong movement bias for exploration
 
     // 💕 REPRODUCTION BIAS: Make creatures want to reproduce when mature
-    brain.setBias(1, 4, 2.5); // STRONG bias toward reproduction (increased from 1.0)
+    brain.setBias(1, 4, 4.0); // VERY STRONG bias toward reproduction (increased from 2.5)
 
     // ⚔️ ATTACK BIAS: Small bias toward attacking when threatened
-    brain.setBias(1, 3, 0.5); // Small bias toward attacking
+    brain.setBias(1, 3, -1.0); // NEGATIVE bias - discourage random attacking
 
     // 🔗 KEY CONNECTIONS: Connect important sensors to actions
     // Energy sensor (6) to eating action (2) - when energy low, eat more
-    brain.setWeight(0, 6, 1, 2, -4.0); // STRONGER negative weight: low energy = high eating desire (increased from -3.0)
+    brain.setWeight(0, 6, 1, 2, -6.0); // MUCH STRONGER negative weight: low energy = high eating desire
 
     // Food distance sensor (0) to eating action (2) - when food close, eat more
-    brain.setWeight(0, 0, 1, 2, -3.0); // STRONGER negative weight: close food = high eating desire (increased from -2.0)
+    brain.setWeight(0, 0, 1, 2, -5.0); // MUCH STRONGER negative weight: close food = high eating desire
+
+    // FOOD-SEEKING MOVEMENT: Make creatures move toward food!
+    // Food distance sensor (0) to movement actions - when food far, move more
+    brain.setWeight(0, 0, 1, 0, 3.0); // Positive weight: far food = move to find it
+    brain.setWeight(0, 0, 1, 1, 3.0); // Positive weight: far food = move to find it
 
     // Predator distance sensor (4) to movement actions (0,1) - when predator close, move more
     brain.setWeight(0, 4, 1, 0, -2.0); // Negative weight: close predator = high movement
     brain.setWeight(0, 4, 1, 1, -2.0); // Negative weight: close predator = high movement
 
     // Age sensor (8) to reproduction action (4) - when mature, reproduce more
-    brain.setWeight(0, 8, 1, 4, 3.0); // STRONGER weight: high age = high reproduction desire (increased from 2.0)
+    brain.setWeight(0, 8, 1, 4, 5.0); // STRONGER weight: high age = high reproduction desire (increased from 3.0)
 
     // Energy sensor (6) to reproduction action (4) - when high energy, reproduce more
-    brain.setWeight(0, 6, 1, 4, 2.5); // STRONGER weight: high energy = high reproduction desire (increased from 1.5)
+    brain.setWeight(0, 6, 1, 4, 4.0); // STRONGER weight: high energy = high reproduction desire (increased from 2.5)
+
+    // 🚀 HIDDEN LAYER TO ACTION CONNECTIONS - THE MISSING PIECE!
+    // These ensure the hidden layer processing actually affects movement
+    brain.setWeight(1, 0, 2, 0, 3.0); // Hidden neuron 0 → moveX action
+    brain.setWeight(1, 1, 2, 1, 3.0); // Hidden neuron 1 → moveY action
+    brain.setWeight(1, 2, 2, 2, 4.0); // Hidden neuron 2 → eat action (strong)
+    brain.setWeight(1, 4, 2, 4, 3.0); // Hidden neuron 4 → reproduce action
+
+    // 💕 MATE-SEEKING BEHAVIOR: When want to reproduce, move to find mates
+    brain.setWeight(0, 9, 1, 0, -2.0); // Population density sensor → moveX (low density = explore more)
+    brain.setWeight(0, 9, 1, 1, -2.0); // Population density sensor → moveY (low density = explore more)
+
+    // 🧭 EXPLORATION BIAS: When no food/mates detected, explore randomly
+    brain.setWeight(0, 10, 1, 0, 1.0); // Vision forward → moveX (clear vision = move forward)
+    brain.setWeight(0, 11, 1, 1, -1.0); // Vision left → moveY (obstacle left = move right)
+    brain.setWeight(0, 12, 1, 1, 1.0); // Vision right → moveY (obstacle right = move left)
 
     // Add tiny bit of randomness for diversity (1% variation)
     brain.mutate(1.0, 0.01);

@@ -93,7 +93,7 @@ const ButtonContainer = styled.div`
   margin-bottom: 1rem;
 `;
 
-const Button = styled.button<{ variant: "primary" | "secondary" | "danger" }>`
+const Button = styled.button<{ $variant: "primary" | "secondary" | "danger" }>`
   width: 100%;
   padding: 0.75rem 1rem;
   border-radius: 0.5rem;
@@ -109,7 +109,7 @@ const Button = styled.button<{ variant: "primary" | "secondary" | "danger" }>`
   }
 
   ${(props) => {
-    switch (props.variant) {
+    switch (props.$variant) {
       case "danger":
         return `
           background: #dc2626;
@@ -282,13 +282,13 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
 
       <ButtonContainer>
         <Button
-          variant={isRunning ? "danger" : "primary"}
+          $variant={isRunning ? "danger" : "primary"}
           onClick={onToggleRunning}
         >
           {isRunning ? "⏸️ Pause Simulation" : "▶️ Start Evolution"}
         </Button>
 
-        <Button variant="secondary" onClick={onReset}>
+        <Button $variant="secondary" onClick={onReset}>
           🔄 Reset Population
         </Button>
       </ButtonContainer>
