@@ -81,9 +81,9 @@ export class BootstrapBrainFactory {
     brain.setWeight(0, 0, 1, 2, -5.0); // MUCH STRONGER negative weight: close food = high eating desire
 
     // FOOD-SEEKING MOVEMENT: Make creatures move toward food!
-    // 🔧 FIXED: Different weights for X/Y to prevent uniform directional bias
-    brain.setWeight(0, 0, 1, 0, 2.5); // Food distance → moveX (slightly less)
-    brain.setWeight(0, 0, 1, 1, 3.5); // Food distance → moveY (slightly more)
+    // 🔧 CRITICAL FIX: NEGATIVE weights so low food distance = high movement
+    brain.setWeight(0, 0, 1, 0, -3.5); // Food distance → moveX (NEGATIVE: close food = more movement)
+    brain.setWeight(0, 0, 1, 1, -2.5); // Food distance → moveY (NEGATIVE: close food = more movement)
 
     // Predator distance sensor (4) to movement actions (0,1) - when predator close, move more
     // 🔧 FIXED: Different weights for X/Y movement

@@ -632,7 +632,7 @@ export class Creature {
 
     // Energy cost for movement (bigger creatures cost more, frame-rate independent)
     const movementCost =
-      (Math.abs(moveX) + Math.abs(moveY)) * this.genetics.size * 0.003; // Reduced by ~33x for high FPS
+      (Math.abs(moveX) + Math.abs(moveY)) * this.genetics.size * 0.005; // Increased for population control
     this.physics.energy = Math.max(0, this.physics.energy - movementCost);
 
     // Update rotation for vision rays
@@ -672,9 +672,9 @@ export class Creature {
     this.stats.ticksAlive++;
 
     // Natural energy decay based on efficiency (frame-rate independent)
-    // Target: lose ~10 energy per second at 60 FPS with efficiency 1.0
+    // Target: lose ~15 energy per second at 60 FPS with efficiency 1.0 (increased for population control)
     const oldEnergy = this.physics.energy;
-    const decayRate = (2 - this.genetics.efficiency) * 0.0027; // Reduced by ~37x for high FPS
+    const decayRate = (2 - this.genetics.efficiency) * 0.004; // Increased for population balance
     this.physics.energy = Math.max(0, this.physics.energy - decayRate);
 
     // 🔋 CRITICAL ENERGY LOGGING

@@ -283,7 +283,7 @@ export default function SimulationPage() {
 
   const config: SimpleSimulationConfig = {
     initialPopulation: 10,
-    maxPopulation: 50,
+    maxPopulation: 400,
     worldWidth: 800,
     worldHeight: 800,
     targetFPS: 30,

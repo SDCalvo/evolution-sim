@@ -266,8 +266,8 @@ export class GeneticsHelper {
     genetics.maturityAge = Math.max(30, Math.min(60, genetics.maturityAge));
     genetics.lifespan = Math.max(800, Math.min(1200, genetics.lifespan));
     genetics.reproductionCost = Math.max(
-      30,
-      Math.min(50, genetics.reproductionCost)
+      40,
+      Math.min(70, genetics.reproductionCost)
     );
     genetics.parentalCare = Math.max(0.0, Math.min(1.0, genetics.parentalCare));
   }

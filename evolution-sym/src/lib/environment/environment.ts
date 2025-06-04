@@ -81,19 +81,22 @@ export class Environment {
     // 2. Update carrion decay
     this.updateCarrion();
 
-    // 3. Process creature actions and interactions
+    // 3. 🎯 NEW: Apply carrying capacity pressure
+    this.applyCarryingCapacityPressure();
+
+    // 4. Process creature actions and interactions
     this.processCreatureInteractions();
 
-    // 3. Spawn new entities based on biome characteristics
+    // 5. Spawn new entities based on biome characteristics
     this.spawnEntities();
 
-    // 4. Clean up dead/consumed entities
+    // 6. Clean up dead/consumed entities
     this.cleanupEntities();
 
-    // 5. Update spatial grid
+    // 7. Update spatial grid
     this.updateSpatialGrid();
 
-    // 6. Update statistics
+    // 8. Update statistics
     const endTime = performance.now();
     this.updateStats(endTime - startTime);
 
@@ -478,6 +481,111 @@ export class Environment {
   }
 
   /**
+   * 🎯 Apply carrying capacity pressure to control population growth
+   */
+  private applyCarryingCapacityPressure(): void {
+    const carryingCapacity = this.config.carryingCapacity;
+    if (!carryingCapacity) return; // No carrying capacity system enabled
+
+    const currentPopulation = this.creatures.size;
+    const targetPopulation = carryingCapacity.targetPopulation;
+    const maxPopulation = carryingCapacity.maxPopulation;
+
+    // Skip if population is within healthy range
+    if (currentPopulation <= targetPopulation) return;
+
+    // Calculate pressure intensity based on overpopulation
+    const overpopulation = currentPopulation - targetPopulation;
+    const overpopulationRatio = overpopulation / targetPopulation;
+
+    // 1. DENSITY-DEPENDENT MORTALITY - natural death from overcrowding
+    if (currentPopulation > targetPopulation) {
+      // Mortality rate increases exponentially with overpopulation
+      const mortalityChance =
+        carryingCapacity.mortalityRate * Math.pow(overpopulationRatio, 2);
+
+      for (const creature of this.creatures.values()) {
+        if (Math.random() < mortalityChance) {
+          // Mark for natural death (will be processed in cleanup)
+          creature.physics.health = 0; // Environmental stress death
+
+          simulationLogger.warning(
+            LogCategory.POPULATION,
+            `🌍 Environmental stress killed ${creature.id.substring(
+              0,
+              8
+            )} (population: ${currentPopulation}/${targetPopulation})`
+          );
+        }
+      }
+    }
+
+    // 2. SOCIAL STRESS - energy drain from overcrowding
+    const stressMultiplier =
+      1 + overpopulationRatio * carryingCapacity.densityStressFactor * 100;
+
+    for (const creature of this.creatures.values()) {
+      // Calculate local density around this creature
+      const nearbyCreatures = this.queryNearbyEntities({
+        position: creature.physics.position,
+        radius: 150, // 150px radius for stress calculation
+        entityTypes: [], // We want creatures, which aren't in entityTypes
+      }).creatures.length;
+
+      // More stress with more nearby creatures
+      const localStress =
+        nearbyCreatures * carryingCapacity.densityStressFactor;
+      creature.physics.energy = Math.max(
+        0,
+        creature.physics.energy - localStress
+      );
+    }
+
+    // 3. EMERGENCY MEASURES - hard population cap
+    if (currentPopulation > maxPopulation) {
+      // Kill oldest, weakest creatures to enforce hard cap
+      const excessCreatures = currentPopulation - maxPopulation;
+      const sortedCreatures = Array.from(this.creatures.values())
+        .filter((c) => c.state === CreatureState.Alive)
+        .sort((a, b) => {
+          // Sort by fitness (lowest first) and then by age (oldest first)
+          const fitnessDiff = a.stats.fitness - b.stats.fitness;
+          if (Math.abs(fitnessDiff) < 0.1) {
+            return b.physics.age - a.physics.age; // Older dies first if similar fitness
+          }
+          return fitnessDiff; // Lower fitness dies first
+        });
+
+      for (
+        let i = 0;
+        i < Math.min(excessCreatures, sortedCreatures.length);
+        i++
+      ) {
+        const victim = sortedCreatures[i];
+        victim.physics.health = 0; // Emergency population control
+
+        simulationLogger.critical(
+          LogCategory.POPULATION,
+          `⚠️ Emergency population control: eliminated ${victim.id.substring(
+            0,
+            8
+          )} (${currentPopulation}/${maxPopulation})`
+        );
+      }
+    }
+
+    // 4. LOG POPULATION PRESSURE
+    if (this.tickCount % 100 === 0 && overpopulation > 0) {
+      simulationLogger.warning(
+        LogCategory.POPULATION,
+        `🌍 Population pressure: ${currentPopulation}/${targetPopulation} (+${overpopulation}) - stress multiplier: ${stressMultiplier.toFixed(
+          2
+        )}x`
+      );
+    }
+  }
+
+  /**
    * Private helper methods
    */
 
@@ -498,6 +606,15 @@ export class Environment {
       preySpawnRate: 0.1,
       spatialGridSize: 100,
       updateFrequency: 1,
+
+      // 🎯 Evidence-tuned carrying capacity settings for 300 target population (Iteration 22 - AGGRESSIVE Sweet Spot!)
+      carryingCapacity: {
+        targetPopulation: 300,
+        maxPopulation: 400,
+        densityStressFactor: 0.0001, // Reduced from 0.0005 - was causing energy crisis even at low pop
+        mortalityRate: 0.005, // Further reduced from 0.015 (44 creatures) - let population grow first
+        resourceScaling: 0.85, // Optimal resource competition
+      },
     };
 
     return { ...defaultConfig, ...config };
@@ -582,14 +699,37 @@ export class Environment {
   }
 
   private spawnEntities(): void {
-    // Spawn food based on biome characteristics and current population
+    // 🎯 Calculate resource scaling based on population pressure
+    let resourceMultiplier = 1.0;
+    if (this.config.carryingCapacity) {
+      const currentPopulation = this.creatures.size;
+      const targetPopulation = this.config.carryingCapacity.targetPopulation;
+
+      if (currentPopulation > targetPopulation) {
+        // Reduce food spawning when overpopulated
+        const overpopulationRatio =
+          (currentPopulation - targetPopulation) / targetPopulation;
+        resourceMultiplier = Math.max(
+          0.2,
+          this.config.carryingCapacity.resourceScaling -
+            overpopulationRatio * 0.3
+        );
+      } else if (currentPopulation < targetPopulation * 0.5) {
+        // Increase food spawning when underpopulated
+        resourceMultiplier = 1.5;
+      }
+    }
+
+    // Spawn food based on biome characteristics and population pressure
     if (
       this.stats.plantFood <
       this.config.maxFood * this.biome.characteristics.plantDensity * 0.5
     ) {
       if (
         Math.random() <
-        this.config.foodSpawnRate * this.biome.characteristics.plantDensity
+        this.config.foodSpawnRate *
+          this.biome.characteristics.plantDensity *
+          resourceMultiplier
       ) {
         this.spawnPlantFood();
       }
@@ -601,7 +741,9 @@ export class Environment {
     ) {
       if (
         Math.random() <
-        this.config.preySpawnRate * this.biome.characteristics.preyDensity
+        this.config.preySpawnRate *
+          this.biome.characteristics.preyDensity *
+          resourceMultiplier
       ) {
         this.spawnSmallPrey();
       }

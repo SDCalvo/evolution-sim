@@ -247,6 +247,15 @@ export interface EnvironmentConfig {
   // Performance settings
   spatialGridSize: number; // Grid cell size for spatial partitioning
   updateFrequency: number; // Ticks per environment update
+
+  // 🎯 NEW: Carrying capacity system for population control
+  carryingCapacity?: {
+    targetPopulation: number; // Ideal stable population (default: 300)
+    maxPopulation: number; // Hard limit before emergency measures (default: 400)
+    densityStressFactor: number; // How much overcrowding affects energy (default: 0.001)
+    mortalityRate: number; // Base chance of density-dependent death (default: 0.001)
+    resourceScaling: number; // How population affects food spawning (default: 0.8)
+  };
 }
 
 // ============================================================================
