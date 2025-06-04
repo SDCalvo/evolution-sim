@@ -174,15 +174,15 @@ export class Creature {
     const currentTick = this.physics.age; // Use age as tick counter
     const currentPos = this.physics.position;
 
-    // 🎯 PERFORMANCE: Check sensor cache first
+    // 🎯 PERFORMANCE: Check sensor cache first - FIXED with sensitive thresholds
     if (this.sensorCache) {
       const positionChanged =
-        Math.abs(this.sensorCache.position.x - currentPos.x) > 10 ||
-        Math.abs(this.sensorCache.position.y - currentPos.y) > 10;
+        Math.abs(this.sensorCache.position.x - currentPos.x) > 2 ||
+        Math.abs(this.sensorCache.position.y - currentPos.y) > 2;
       const tickDelta = currentTick - this.sensorCache.tick;
 
-      // Use cached data if position hasn't changed much and cache is recent
-      if (!positionChanged && tickDelta < 3) {
+      // ✅ FIXED: Much more sensitive cache invalidation for environmental responsiveness
+      if (!positionChanged && tickDelta < 2) {
         // Update internal sensors only (energy, health, age) - these change every tick
         this.sensorCache.data[6] = this.physics.energy / 100; // energyLevel
         this.sensorCache.data[7] = this.physics.health / 100; // healthLevel
@@ -198,15 +198,16 @@ export class Creature {
     // Query nearby entities using spatial grid - WITH CACHING! 🦴
     const searchRadius = this.genetics.visionRange * 100; // Convert genetic trait to pixels
 
-    // 🎯 PERFORMANCE: Check spatial query cache
+    // 🎯 PERFORMANCE: Check spatial query cache - FIXED with sensitive thresholds
     let nearbyEntities;
     if (this.spatialQueryCache) {
       const positionChanged =
-        Math.abs(this.spatialQueryCache.position.x - currentPos.x) > 20 ||
-        Math.abs(this.spatialQueryCache.position.y - currentPos.y) > 20;
+        Math.abs(this.spatialQueryCache.position.x - currentPos.x) > 5 ||
+        Math.abs(this.spatialQueryCache.position.y - currentPos.y) > 5;
       const tickDelta = currentTick - this.spatialQueryCache.tick;
 
-      if (!positionChanged && tickDelta < 5) {
+      // ✅ FIXED: More frequent spatial updates for environmental awareness
+      if (!positionChanged && tickDelta < 3) {
         nearbyEntities = this.spatialQueryCache.nearbyEntities;
       }
     }
@@ -433,13 +434,14 @@ export class Creature {
   private think(sensorData: number[]): CreatureActions {
     const rawOutput = this.brain.process(sensorData);
 
+    // 🚨 CRITICAL FIX: Tanh outputs -1 to +1, don't double-convert!
     // Convert neural network output to actions
     return {
-      moveX: rawOutput[0] * 2 - 1, // Convert 0-1 to -1 to +1
-      moveY: rawOutput[1] * 2 - 1, // Convert 0-1 to -1 to +1
-      eat: rawOutput[2], // Keep 0-1
-      attack: rawOutput[3], // Keep 0-1
-      reproduce: rawOutput[4], // Keep 0-1
+      moveX: rawOutput[0], // Tanh already gives -1 to +1
+      moveY: rawOutput[1], // Tanh already gives -1 to +1
+      eat: rawOutput[2], // Keep tanh output
+      attack: rawOutput[3], // Keep tanh output
+      reproduce: rawOutput[4], // Keep tanh output
     };
   }
 
