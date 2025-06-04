@@ -61,8 +61,11 @@ export class BootstrapBrainFactory {
     brain.setBias(1, 2, 5.0); // VERY STRONG bias toward eating action (increased from 3.0)
 
     // 🏃 MOVEMENT BIAS: Strong enough to ensure exploration and mate-seeking
-    brain.setBias(1, 0, 2.0); // INCREASED: Strong movement bias for exploration
-    brain.setBias(1, 1, 2.0); // INCREASED: Strong movement bias for exploration
+    // ⭐ NEW: Individual variation to prevent directional bias
+    const xBias = 2.0 + (Math.random() - 0.5) * 0.8; // 1.6 to 2.4
+    const yBias = 2.0 + (Math.random() - 0.5) * 0.8; // 1.6 to 2.4
+    brain.setBias(1, 0, xBias); // Individual movement bias for exploration
+    brain.setBias(1, 1, yBias); // Individual movement bias for exploration
 
     // 💕 REPRODUCTION BIAS: Make creatures want to reproduce when mature
     brain.setBias(1, 4, 4.0); // VERY STRONG bias toward reproduction (increased from 2.5)
@@ -78,13 +81,14 @@ export class BootstrapBrainFactory {
     brain.setWeight(0, 0, 1, 2, -5.0); // MUCH STRONGER negative weight: close food = high eating desire
 
     // FOOD-SEEKING MOVEMENT: Make creatures move toward food!
-    // Food distance sensor (0) to movement actions - when food far, move more
-    brain.setWeight(0, 0, 1, 0, 3.0); // Positive weight: far food = move to find it
-    brain.setWeight(0, 0, 1, 1, 3.0); // Positive weight: far food = move to find it
+    // 🔧 FIXED: Different weights for X/Y to prevent uniform directional bias
+    brain.setWeight(0, 0, 1, 0, 2.5); // Food distance → moveX (slightly less)
+    brain.setWeight(0, 0, 1, 1, 3.5); // Food distance → moveY (slightly more)
 
     // Predator distance sensor (4) to movement actions (0,1) - when predator close, move more
-    brain.setWeight(0, 4, 1, 0, -2.0); // Negative weight: close predator = high movement
-    brain.setWeight(0, 4, 1, 1, -2.0); // Negative weight: close predator = high movement
+    // 🔧 FIXED: Different weights for X/Y movement
+    brain.setWeight(0, 4, 1, 0, -2.5); // Predator → moveX (stronger)
+    brain.setWeight(0, 4, 1, 1, -1.5); // Predator → moveY (weaker)
 
     // Age sensor (8) to reproduction action (4) - when mature, reproduce more
     brain.setWeight(0, 8, 1, 4, 5.0); // STRONGER weight: high age = high reproduction desire (increased from 3.0)
@@ -100,16 +104,25 @@ export class BootstrapBrainFactory {
     brain.setWeight(1, 4, 2, 4, 3.0); // Hidden neuron 4 → reproduce action
 
     // 💕 MATE-SEEKING BEHAVIOR: When want to reproduce, move to find mates
-    brain.setWeight(0, 9, 1, 0, -2.0); // Population density sensor → moveX (low density = explore more)
-    brain.setWeight(0, 9, 1, 1, -2.0); // Population density sensor → moveY (low density = explore more)
+    // 🔧 FIXED: Different weights to create varied movement patterns
+    brain.setWeight(0, 9, 1, 0, -1.5); // Population density → moveX (weaker)
+    brain.setWeight(0, 9, 1, 1, -2.5); // Population density → moveY (stronger)
 
     // 🧭 EXPLORATION BIAS: When no food/mates detected, explore randomly
-    brain.setWeight(0, 10, 1, 0, 1.0); // Vision forward → moveX (clear vision = move forward)
-    brain.setWeight(0, 11, 1, 1, -1.0); // Vision left → moveY (obstacle left = move right)
-    brain.setWeight(0, 12, 1, 1, 1.0); // Vision right → moveY (obstacle right = move left)
+    // 🔧 FIXED: More balanced directional weights
+    brain.setWeight(0, 10, 1, 0, 0.8); // Vision forward → moveX (reduced)
+    brain.setWeight(0, 11, 1, 1, -0.8); // Vision left → moveY (obstacle left = move right)
+    brain.setWeight(0, 12, 1, 1, 0.8); // Vision right → moveY (obstacle right = move left)
 
-    // Add tiny bit of randomness for diversity (1% variation)
-    brain.mutate(1.0, 0.01);
+    // ⭐ NEW: Add individual variation to prevent identical behavior
+    // Each creature gets slightly different movement preferences
+    const individualVariation = () => (Math.random() - 0.5) * 0.4; // ±20% variation
+
+    brain.setWeight(0, 13, 1, 0, 1.0 + individualVariation()); // Vision back → moveX with variation
+    brain.setWeight(0, 13, 1, 1, 1.0 + individualVariation()); // Vision back → moveY with variation
+
+    // 🔧 FIXED: Increased mutation for more behavioral diversity
+    brain.mutate(1.0, 0.05); // Increased from 0.01 to 0.05 (5% variation)
 
     return brain;
   }

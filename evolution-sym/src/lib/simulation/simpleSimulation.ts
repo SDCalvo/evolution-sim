@@ -613,49 +613,46 @@ export class SimpleSimulation {
         ); // 0-√2 ≈ 0-1.4
         const normalizedMovement = movementMagnitude / 1.414; // Normalize to 0-1 range
 
-        // Now all actions are in 0-1 range for fair comparison
-        const maxAction = Math.max(
-          actions.eat,
-          actions.attack,
-          actions.reproduce,
-          normalizedMovement
-        );
-
-        // 🎯 FIXED: Classify based on PRIMARY action, but recognize movement
-        const isMoving = normalizedMovement > 0.15; // Lower threshold for movement detection
+        // 🎯 NEW APPROACH: Count movement independently, then classify intent
+        const isMoving = normalizedMovement > 0.1; // LOWERED threshold for better detection
         const isEating = actions.eat > 0.5;
         const isReproducing = actions.reproduce > 0.3;
         const isAttacking = actions.attack > 0.7;
 
-        // If creature is doing multiple things, classify by the strongest
-        if (isEating && isMoving && actions.eat > normalizedMovement) {
-          actionCounts.eating++; // Moving to eat
-        } else if (
-          isReproducing &&
-          isMoving &&
-          actions.reproduce > normalizedMovement
-        ) {
-          actionCounts.reproducing++; // Moving to reproduce
-        } else if (
-          isAttacking &&
-          isMoving &&
-          actions.attack > normalizedMovement
-        ) {
-          actionCounts.attacking++; // Moving to attack
-        } else if (isMoving) {
-          actionCounts.moving++; // Pure movement/exploration
-        } else if (isEating) {
-          actionCounts.eating++; // Stationary eating
-        } else if (isReproducing) {
-          actionCounts.reproducing++; // Stationary reproduction attempt
-        } else if (isAttacking) {
-          actionCounts.attacking++; // Stationary attacking
-        } else {
-          actionCounts.idle++; // Truly idle
+        // 🚀 FIXED: Always count significant movement, regardless of intent
+        if (isMoving) {
+          // If creature is moving AND has strong other desires, it's goal-directed movement
+          if (isEating && actions.eat > 0.8) {
+            actionCounts.moving++; // Count as movement (seeking food)
+          } else if (isReproducing && actions.reproduce > 0.6) {
+            actionCounts.moving++; // Count as movement (seeking mate)
+          } else if (isAttacking && actions.attack > 0.8) {
+            actionCounts.moving++; // Count as movement (pursuing target)
+          } else {
+            actionCounts.moving++; // Pure exploration movement
+          }
+        }
+
+        // 🎯 THEN count primary action intentions (can overlap with movement)
+        if (isEating) {
+          actionCounts.eating++;
+        }
+        if (isReproducing) {
+          actionCounts.reproducing++;
+        }
+        if (isAttacking) {
+          actionCounts.attacking++;
+        }
+
+        // Only count as idle if creature is truly doing nothing
+        if (!isMoving && !isEating && !isReproducing && !isAttacking) {
+          actionCounts.idle++;
         }
       });
 
       const total = recentDecisions.length;
+      // 📊 NEW: Percentages now show proportion of creatures doing each action
+      // (can sum to >100% since creatures can move AND eat simultaneously)
       simulationLogger.logBrainDecisions(
         (actionCounts.moving / total) * 100,
         (actionCounts.eating / total) * 100,
