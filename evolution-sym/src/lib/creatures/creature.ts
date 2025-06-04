@@ -52,6 +52,20 @@ export class Creature {
   public reproductionCooldown: number;
   public isMateable: boolean;
 
+  // 🎯 PERFORMANCE: Cache expensive sensor data
+  private sensorCache: {
+    data: number[];
+    tick: number;
+    position: Vector2;
+  } | null = null;
+
+  // 🎯 PERFORMANCE: Cache spatial queries
+  private spatialQueryCache: {
+    nearbyEntities: any;
+    tick: number;
+    position: Vector2;
+  } | null = null;
+
   /**
    * Create a new creature
    */
@@ -111,7 +125,7 @@ export class Creature {
   ): void {
     if (this.state !== CreatureState.Alive) return;
 
-    // 1. Sense environment (12 sensors)
+    // 1. Sense environment (optimized with caching)
     const sensorData = this.sense(environment);
 
     // 2. Think with AI brain
@@ -133,19 +147,22 @@ export class Creature {
     // 4. Act on decisions
     this.act(decisions, environment);
 
-    // 4. Update physics and internal state
+    // 5. Update physics and internal state
     this.updatePhysics(environment);
     this.updateInternalState();
 
-    // 5. Check survival conditions
+    // 6. Check survival conditions
     this.checkSurvival();
 
-    // 6. Update statistics
-    this.updateStats();
+    // 7. Update statistics (reduced frequency)
+    if (this.physics.age % 5 === 0) {
+      // Only update stats every 5 ticks
+      this.updateStats();
+    }
   }
 
   /**
-   * Generate 12-sensor input for neural network
+   * Generate 14-sensor input for neural network - OPTIMIZED WITH CACHING
    * Real environmental sensing using spatial queries!
    */
   private sense(environment?: Environment): number[] {
@@ -154,21 +171,69 @@ export class Creature {
       return Array(14).fill(0.5);
     }
 
-    // Query nearby entities using spatial grid - INCLUDING CARRION! 🦴
+    const currentTick = this.physics.age; // Use age as tick counter
+    const currentPos = this.physics.position;
+
+    // 🎯 PERFORMANCE: Check sensor cache first
+    if (this.sensorCache) {
+      const positionChanged =
+        Math.abs(this.sensorCache.position.x - currentPos.x) > 10 ||
+        Math.abs(this.sensorCache.position.y - currentPos.y) > 10;
+      const tickDelta = currentTick - this.sensorCache.tick;
+
+      // Use cached data if position hasn't changed much and cache is recent
+      if (!positionChanged && tickDelta < 3) {
+        // Update internal sensors only (energy, health, age) - these change every tick
+        this.sensorCache.data[6] = this.physics.energy / 100; // energyLevel
+        this.sensorCache.data[7] = this.physics.health / 100; // healthLevel
+        this.sensorCache.data[8] = Math.min(
+          this.physics.age / this.genetics.lifespan,
+          1
+        ); // ageLevel
+
+        return this.sensorCache.data;
+      }
+    }
+
+    // Query nearby entities using spatial grid - WITH CACHING! 🦴
     const searchRadius = this.genetics.visionRange * 100; // Convert genetic trait to pixels
-    const spatialQuery: SpatialQuery = {
-      position: this.physics.position,
-      radius: searchRadius,
-      entityTypes: [
-        EntityType.PlantFood,
-        EntityType.SmallPrey,
-        EntityType.MushroomFood,
-        EntityType.Carrion, // 🦴 NOW DETECTING CARRION!
-      ],
-      sortByDistance: true,
-      excludeCreature: this,
-    };
-    const nearbyEntities = environment.queryNearbyEntities(spatialQuery);
+
+    // 🎯 PERFORMANCE: Check spatial query cache
+    let nearbyEntities;
+    if (this.spatialQueryCache) {
+      const positionChanged =
+        Math.abs(this.spatialQueryCache.position.x - currentPos.x) > 20 ||
+        Math.abs(this.spatialQueryCache.position.y - currentPos.y) > 20;
+      const tickDelta = currentTick - this.spatialQueryCache.tick;
+
+      if (!positionChanged && tickDelta < 5) {
+        nearbyEntities = this.spatialQueryCache.nearbyEntities;
+      }
+    }
+
+    // Perform spatial query if not cached
+    if (!nearbyEntities) {
+      const spatialQuery: SpatialQuery = {
+        position: this.physics.position,
+        radius: searchRadius,
+        entityTypes: [
+          EntityType.PlantFood,
+          EntityType.SmallPrey,
+          EntityType.MushroomFood,
+          EntityType.Carrion, // 🦴 NOW DETECTING CARRION!
+        ],
+        sortByDistance: true,
+        excludeCreature: this,
+      };
+      nearbyEntities = environment.queryNearbyEntities(spatialQuery);
+
+      // Cache the spatial query result
+      this.spatialQueryCache = {
+        nearbyEntities,
+        tick: currentTick,
+        position: { x: currentPos.x, y: currentPos.y },
+      };
+    }
 
     // Initialize sensors - NOW WITH CARRION DETECTION! 🦴
     const sensors: CreatureSensors = {
@@ -186,7 +251,7 @@ export class Creature {
       preyDistance: 1.0, // Default: no prey
       populationDensity: 0.0, // Will calculate from nearby creatures
 
-      // Vision rays (spatial awareness in 4 directions)
+      // Vision rays (spatial awareness in 4 directions) - CACHED!
       visionForward: 1.0, // Default: clear vision
       visionLeft: 1.0,
       visionRight: 1.0,
@@ -249,13 +314,16 @@ export class Creature {
       sensors.carrionFreshness = closestCarrionFreshness;
     }
 
-    // Analyze nearby creatures for predators/prey/population
+    // Analyze nearby creatures for predators/prey/population - OPTIMIZED
     let predatorCount = 0;
     let preyCount = 0;
     let closestPredatorDistance = Infinity;
     let closestPreyDistance = Infinity;
 
-    for (const creature of nearbyEntities.creatures) {
+    // 🎯 PERFORMANCE: Limit creature analysis to closest 10 creatures
+    const nearbyCreatures = nearbyEntities.creatures.slice(0, 10);
+
+    for (const creature of nearbyCreatures) {
       if (creature.id === this.id) continue; // Skip self
 
       const distance = this.calculateDistance(
@@ -300,27 +368,39 @@ export class Creature {
     // Clamp population density to 0-1
     sensors.populationDensity = Math.min(sensors.populationDensity, 1.0);
 
-    // Vision rays: Check for obstacles in 4 directions
-    const visionDistance = this.genetics.visionRange * 50; // Half search radius for vision
-    sensors.visionForward = this.castVisionRay(environment, 0, visionDistance); // Forward
-    sensors.visionLeft = this.castVisionRay(
-      environment,
-      -Math.PI / 2,
-      visionDistance
-    ); // Left
-    sensors.visionRight = this.castVisionRay(
-      environment,
-      Math.PI / 2,
-      visionDistance
-    ); // Right
-    sensors.visionBack = this.castVisionRay(
-      environment,
-      Math.PI,
-      visionDistance
-    ); // Back
+    // 🎯 PERFORMANCE: Vision rays only every 10 ticks to reduce expensive ray casting
+    if (currentTick % 10 === 0) {
+      const visionDistance = this.genetics.visionRange * 50; // Half search radius for vision
+      sensors.visionForward = this.castVisionRay(
+        environment,
+        0,
+        visionDistance
+      ); // Forward
+      sensors.visionLeft = this.castVisionRay(
+        environment,
+        -Math.PI / 2,
+        visionDistance
+      ); // Left
+      sensors.visionRight = this.castVisionRay(
+        environment,
+        Math.PI / 2,
+        visionDistance
+      ); // Right
+      sensors.visionBack = this.castVisionRay(
+        environment,
+        Math.PI,
+        visionDistance
+      ); // Back
+    } else if (this.sensorCache) {
+      // Use cached vision data
+      sensors.visionForward = this.sensorCache.data[10];
+      sensors.visionLeft = this.sensorCache.data[11];
+      sensors.visionRight = this.sensorCache.data[12];
+      sensors.visionBack = this.sensorCache.data[13];
+    }
 
     // Convert to array for neural network - NOW 14 INPUTS FOR CARRION! 🦴
-    return [
+    const sensorArray = [
       sensors.foodDistance,
       sensors.foodType,
       sensors.carrionDistance, // 🦴 NEW: Distance to carrion
@@ -336,6 +416,15 @@ export class Creature {
       sensors.visionRight,
       sensors.visionBack,
     ];
+
+    // 🎯 PERFORMANCE: Cache sensor data for reuse
+    this.sensorCache = {
+      data: [...sensorArray],
+      tick: currentTick,
+      position: { x: currentPos.x, y: currentPos.y },
+    };
+
+    return sensorArray;
   }
 
   /**
@@ -404,219 +493,100 @@ export class Creature {
   }
 
   /**
-   * Generate thoughts based on brain decisions and current state
+   * Generate thoughts based on brain decisions and current state - OPTIMIZED
    */
   private generateThoughts(
     actions: CreatureActions,
     environment?: Environment
   ): void {
+    // 🎯 PERFORMANCE: Only generate thoughts every 20 ticks to reduce overhead
+    if (this.physics.age % 20 !== 0) {
+      // Decrease current thought duration
+      if (this.stats.currentThought) {
+        this.stats.currentThought.duration--;
+        if (this.stats.currentThought.duration <= 0) {
+          this.stats.currentThought = undefined;
+        }
+      }
+      return;
+    }
+
     const thoughts: CreatureThought[] = [];
 
-    // Energy-based thoughts
-    if (this.physics.energy < 30) {
+    // Energy-based thoughts (highest priority)
+    if (this.physics.energy < 20) {
       thoughts.push({
-        text: "I'm starving!",
-        priority: 10,
-        duration: 30,
-        color: "#ff4444",
-        icon: "🍽️",
+        text: "STARVING!",
+        priority: 15,
+        duration: 60,
+        color: "#ff0000",
+        icon: "🆘",
       });
-    } else if (this.physics.energy < 50) {
+    } else if (this.physics.energy < 40) {
       thoughts.push({
-        text: "Getting hungry...",
-        priority: 5,
-        duration: 20,
-        color: "#ffaa44",
-        icon: "🤔",
+        text: "Hungry...",
+        priority: 8,
+        duration: 40,
+        color: "#ff8800",
+        icon: "🍽️",
       });
     }
 
-    // Action-based thoughts
+    // Action-based thoughts (reduced complexity)
     if (actions.eat > 0.7) {
       thoughts.push({
-        text: "Food detected!",
-        priority: 8,
-        duration: 25,
+        text: "Food!",
+        priority: 10,
+        duration: 30,
         color: "#44ff44",
         icon: "🍃",
-      });
-    } else if (actions.eat > 0.5) {
-      thoughts.push({
-        text: "Searching for food...",
-        priority: 6,
-        duration: 20,
-        color: "#88ff88",
-        icon: "👀",
       });
     }
 
     if (actions.reproduce > 0.8 && this.canReproduce()) {
       thoughts.push({
-        text: "Looking for a mate!",
-        priority: 9,
-        duration: 40,
+        text: "Mate!",
+        priority: 12,
+        duration: 50,
         color: "#ff69b4",
         icon: "💕",
-      });
-    } else if (actions.reproduce > 0.6) {
-      thoughts.push({
-        text: "Feeling romantic...",
-        priority: 7,
-        duration: 30,
-        color: "#ffb6c1",
-        icon: "💘",
       });
     }
 
     if (actions.attack > 0.8) {
       thoughts.push({
         text: "FIGHT!",
-        priority: 12,
-        duration: 20,
+        priority: 13,
+        duration: 25,
         color: "#ff0000",
         icon: "⚔️",
       });
-    } else if (actions.attack > 0.5) {
-      thoughts.push({
-        text: "Feeling aggressive...",
-        priority: 6,
-        duration: 15,
-        color: "#ff6666",
-        icon: "😤",
-      });
     }
 
-    // Movement-based thoughts
+    // Movement thoughts (simplified)
     const movement = Math.abs(actions.moveX) + Math.abs(actions.moveY);
-    if (movement > 1.5) {
+    if (movement > 1.2) {
       thoughts.push({
-        text: "Running fast!",
-        priority: 4,
-        duration: 10,
+        text: "Moving",
+        priority: 3,
+        duration: 15,
         color: "#4488ff",
         icon: "💨",
       });
-    } else if (movement > 0.8) {
-      thoughts.push({
-        text: "Exploring...",
-        priority: 3,
-        duration: 15,
-        color: "#88aaff",
-        icon: "🧭",
-      });
     }
 
-    // Age-based thoughts
-    if (this.physics.age > this.genetics.lifespan * 0.8) {
+    // Age-based thoughts (reduced frequency)
+    if (this.physics.age > this.genetics.lifespan * 0.9) {
       thoughts.push({
-        text: "I'm getting old...",
-        priority: 3,
-        duration: 60,
+        text: "Old...",
+        priority: 4,
+        duration: 100,
         color: "#888888",
         icon: "👴",
       });
-    } else if (
-      this.physics.age > this.genetics.maturityAge &&
-      !this.isMateable
-    ) {
-      thoughts.push({
-        text: "I'm mature now!",
-        priority: 5,
-        duration: 100,
-        color: "#ffdd44",
-        icon: "🌟",
-      });
     }
 
-    // Health-based thoughts
-    if (this.physics.health < 50) {
-      thoughts.push({
-        text: "I'm hurt...",
-        priority: 8,
-        duration: 50,
-        color: "#aa4444",
-        icon: "🩹",
-      });
-    }
-
-    // Environmental awareness thoughts
-    if (environment) {
-      const nearbyQuery = {
-        position: this.physics.position,
-        radius: this.physics.collisionRadius + 100,
-        entityTypes: [
-          EntityType.PlantFood,
-          EntityType.SmallPrey,
-          EntityType.MushroomFood,
-          EntityType.Carrion,
-        ],
-        maxResults: 10,
-        sortByDistance: true,
-        excludeCreature: this,
-      };
-
-      try {
-        const nearby = environment.queryNearbyEntities(nearbyQuery);
-
-        if (nearby.creatures.length > 3) {
-          thoughts.push({
-            text: "Crowded here!",
-            priority: 4,
-            duration: 20,
-            color: "#ffaa00",
-            icon: "🏃",
-          });
-        }
-
-        if (nearby.food.length === 0 && this.physics.energy < 60) {
-          thoughts.push({
-            text: "No food around...",
-            priority: 6,
-            duration: 30,
-            color: "#ff8800",
-            icon: "😟",
-          });
-        }
-      } catch {
-        // Ignore query errors for thought generation
-      }
-    }
-
-    // Special combination thoughts
-    if (
-      this.physics.energy > 80 &&
-      this.canReproduce() &&
-      actions.reproduce > 0.7
-    ) {
-      thoughts.push({
-        text: "Ready to start a family!",
-        priority: 11,
-        duration: 50,
-        color: "#ff1493",
-        icon: "👨‍👩‍👧‍👦",
-      });
-    }
-
-    if (this.physics.energy < 20 && actions.eat > 0.8) {
-      thoughts.push({
-        text: "MUST FIND FOOD NOW!",
-        priority: 15,
-        duration: 40,
-        color: "#ff0000",
-        icon: "🆘",
-      });
-    }
-
-    // Default exploration thought if nothing else
-    if (thoughts.length === 0 && movement > 0.2) {
-      thoughts.push({
-        text: "Wandering around...",
-        priority: 1,
-        duration: 20,
-        color: "#aaaaaa",
-        icon: "🚶",
-      });
-    }
+    // 🎯 PERFORMANCE: Skip environmental analysis for thoughts to reduce spatial queries
 
     // Select the highest priority thought
     if (thoughts.length > 0) {
@@ -632,9 +602,9 @@ export class Creature {
       ) {
         this.stats.currentThought = newThought;
 
-        // Add to thought history (keep last 10)
+        // Add to thought history (keep last 5 instead of 10)
         this.stats.thoughtHistory.push(newThought);
-        if (this.stats.thoughtHistory.length > 10) {
+        if (this.stats.thoughtHistory.length > 5) {
           this.stats.thoughtHistory.shift();
         }
       }

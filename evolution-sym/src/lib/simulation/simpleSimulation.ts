@@ -309,9 +309,9 @@ export class SimpleSimulation {
     // Get all creatures and update them individually
     const creatures = this.environment.getCreatures();
 
-    // 🧠 CALL CREATURE AI BRAINS - This was missing!
+    // 🧠 CALL CREATURE AI BRAINS - Optimized for performance!
     creatures.forEach((creature) => {
-      // Track creature behavior before update
+      // Track creature behavior before update (only for performance tracking)
       const beforeStats = {
         foodEaten: creature.stats.foodEaten,
         feedingAttempts: creature.stats.feedingAttempts,
@@ -319,85 +319,102 @@ export class SimpleSimulation {
         energy: creature.physics.energy,
       };
 
-      creature.update(this.environment, (decision) => {
-        // Add tick information and store decision
-        decision.tick = this.currentTick;
-        this.brainDecisions.push(decision);
+      // 🎯 PERFORMANCE OPTIMIZATION: Reduced brain tracking frequency
+      const shouldTrackBrain = this.currentTick % 10 === 0; // Track every 10th tick instead of every tick
 
-        // Limit decision history to prevent memory issues (keep last 1000 decisions)
-        if (this.brainDecisions.length > 1000) {
-          this.brainDecisions.shift();
-        }
+      creature.update(
+        this.environment,
+        shouldTrackBrain
+          ? (decision) => {
+              // Add tick information and store decision
+              decision.tick = this.currentTick;
+              this.brainDecisions.push(decision);
 
-        // Log thoughts in real-time (every 30 ticks to avoid spam)
-        if (this.currentTick % 30 === 0 && creature.stats.currentThought) {
-          const thought = creature.stats.currentThought;
-          console.log(
-            `💭 ${creature.id.substring(0, 8)}: "${thought.text}" ${
-              thought.icon
-            } (energy: ${creature.physics.energy.toFixed(1)})`
-          );
-        }
+              // Keep only last 500 decisions instead of 1000 (memory optimization)
+              if (this.brainDecisions.length > 500) {
+                this.brainDecisions.shift();
+              }
 
-        // 🗺️ BRAIN OUTPUT DEBUGGING: Log neural network outputs
-        if (this.currentTick % 100 === 0 && decision.tick % 100 === 0) {
-          const pos = creature.physics.position;
-          const vel = creature.physics.velocity;
-          const moveMagnitude = Math.sqrt(
-            decision.actions.moveX ** 2 + decision.actions.moveY ** 2
-          );
+              // 🔇 REDUCED LOGGING: Only log thoughts every 120 ticks (2 seconds at 60 FPS)
+              if (
+                this.currentTick % 120 === 0 &&
+                creature.stats.currentThought
+              ) {
+                const thought = creature.stats.currentThought;
+                console.log(
+                  `💭 ${creature.id.substring(0, 8)}: "${thought.text}" ${
+                    thought.icon
+                  } (energy: ${creature.physics.energy.toFixed(1)})`
+                );
+              }
 
-          // 🧠 ALWAYS log brain outputs to debug why no movement
-          console.log(
-            `🧠 ${creature.id.substring(0, 8)}: ` +
-              `RAW[${decision.brainOutputs
-                .map((x) => x.toFixed(2))
-                .join(",")}] ` +
-              `ACTIONS[X:${decision.actions.moveX.toFixed(
-                2
-              )} Y:${decision.actions.moveY.toFixed(2)} ` +
-              `E:${decision.actions.eat.toFixed(
-                2
-              )} A:${decision.actions.attack.toFixed(
-                2
-              )} R:${decision.actions.reproduce.toFixed(2)}] ` +
-              `pos(${pos.x.toFixed(0)},${pos.y.toFixed(0)}) vel(${vel.x.toFixed(
-                2
-              )},${vel.y.toFixed(2)})`
-          );
+              // 🔇 MINIMAL BRAIN DEBUGGING: Only log every 300 ticks (5 seconds at 60 FPS)
+              if (this.currentTick % 300 === 0) {
+                const pos = creature.physics.position;
+                const moveMagnitude = Math.sqrt(
+                  decision.actions.moveX ** 2 + decision.actions.moveY ** 2
+                );
 
-          // Log movement separately if it exists
-          if (moveMagnitude > 0.05) {
-            console.log(
-              `🚶 MOVEMENT: ${creature.id.substring(
-                0,
-                8
-              )} magnitude=${moveMagnitude.toFixed(3)}`
-            );
-          }
-        }
-      }); // Each creature thinks and acts!
+                // Only log if there's significant activity
+                if (
+                  moveMagnitude > 0.1 ||
+                  decision.actions.eat > 0.5 ||
+                  decision.actions.reproduce > 0.5
+                ) {
+                  console.log(
+                    `🧠 ${creature.id.substring(0, 8)}: ` +
+                      `ACTIONS[${decision.actions.moveX.toFixed(
+                        2
+                      )},${decision.actions.moveY.toFixed(2)},` +
+                      `E:${decision.actions.eat.toFixed(
+                        1
+                      )},R:${decision.actions.reproduce.toFixed(1)}] ` +
+                      `pos(${pos.x.toFixed(0)},${pos.y.toFixed(
+                        0
+                      )}) energy:${creature.physics.energy.toFixed(1)}`
+                  );
+                }
+              }
+            }
+          : undefined
+      ); // Pass undefined instead of empty function for better performance
 
-      // Track behavior changes after update
-      this.trackCreatureBehavior(creature, beforeStats);
+      // Track behavior changes after update (optimized)
+      if (this.currentTick % 30 === 0) {
+        // Only track every 30 ticks to reduce overhead
+        this.trackCreatureBehavior(creature, beforeStats);
+      }
     });
 
     // Update environment (food spawning, physics, etc.)
     this.environment.update();
 
-    // Track simulation events and stats
-    this.trackSimulationEvents();
+    // 🎯 PERFORMANCE: Track simulation events less frequently
+    if (this.currentTick % 5 === 0) {
+      // Every 5 ticks instead of every tick
+      this.trackSimulationEvents();
+    }
 
-    // Track performance
+    // Track performance (optimized)
     const updateTime = performance.now() - startTime;
     this.updateTimes.push(updateTime);
-    if (this.updateTimes.length > 60) {
+    if (this.updateTimes.length > 30) {
+      // Keep only last 30 samples instead of 60
       this.updateTimes.shift();
     }
 
-    // Schedule next update at reasonable speed
-    const targetFrameTime = 1000 / this.config.targetFPS;
-    const nextUpdateDelay = Math.max(16, targetFrameTime - updateTime); // Minimum 16ms (60 FPS max)
+    // 🚀 ADAPTIVE FRAME RATE: Adjust target FPS based on performance
+    const averageUpdateTime =
+      this.updateTimes.reduce((sum, t) => sum + t, 0) / this.updateTimes.length;
+    let dynamicTargetFPS = this.config.targetFPS;
+
+    // If we're struggling to maintain target FPS, reduce it dynamically
+    if (averageUpdateTime > (1000 / this.config.targetFPS) * 1.5) {
+      dynamicTargetFPS = Math.max(15, this.config.targetFPS * 0.7); // Don't go below 15 FPS
+    }
+
+    const targetFrameTime = 1000 / dynamicTargetFPS;
+    const nextUpdateDelay = Math.max(8, targetFrameTime - updateTime); // Minimum 8ms instead of 16ms
 
     setTimeout(() => this.simulationLoop(), nextUpdateDelay);
   }
