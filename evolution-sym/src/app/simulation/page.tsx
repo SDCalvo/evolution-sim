@@ -1,14 +1,18 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useCallback } from "react";
 import styled from "styled-components";
 import { SimulationCanvas } from "../../components/simulation/SimulationCanvas";
 import { ControlPanel } from "../../components/simulation/ControlPanel";
 import { SimulationLoggerComponent } from "../../components/SimulationLogger";
+import { EvolutionAnalyzer } from "../../components/EvolutionAnalyzer";
 import {
   SimpleSimulationConfig,
   SimpleSimulationStats,
+  SimulationEvent,
 } from "../../lib/simulation/simpleSimulation";
+import { Creature } from "../../lib/creatures/creature";
+import { Environment } from "../../lib/environment/environment";
 
 // Styled Components
 const Container = styled.div`
@@ -280,6 +284,15 @@ export default function SimulationPage() {
   const [stats, setStats] = useState<SimpleSimulationStats | undefined>();
   const [canvasKey, setCanvasKey] = useState(0);
   const [isLoggerOpen, setIsLoggerOpen] = useState(false);
+  const [isAnalyzerOpen, setIsAnalyzerOpen] = useState(false);
+  const [simulationData, setSimulationData] = useState<
+    | {
+        creatures: Creature[];
+        environment: Environment;
+        events: SimulationEvent[];
+      }
+    | undefined
+  >();
 
   const config: SimpleSimulationConfig = {
     initialPopulation: 10,
@@ -299,12 +312,32 @@ export default function SimulationPage() {
     setCanvasKey((prev) => prev + 1);
   };
 
-  const handleStatsUpdate = (newStats: SimpleSimulationStats) => {
+  const handleStatsUpdate = useCallback((newStats: SimpleSimulationStats) => {
     setStats(newStats);
-  };
+  }, []);
+
+  const handleSimulationDataUpdate = useCallback(
+    (data: {
+      creatures: Creature[];
+      environment: Environment;
+      events: SimulationEvent[];
+    }) => {
+      console.log("📡 Page received simulation data:", {
+        creaturesCount: data.creatures.length,
+        eventsCount: data.events.length,
+        environmentPresent: !!data.environment,
+      });
+      setSimulationData(data);
+    },
+    []
+  );
 
   const handleToggleLogger = () => {
     setIsLoggerOpen(!isLoggerOpen);
+  };
+
+  const handleToggleAnalyzer = () => {
+    setIsAnalyzerOpen(!isAnalyzerOpen);
   };
 
   return (
@@ -386,6 +419,7 @@ export default function SimulationPage() {
               config={config}
               isRunning={isRunning}
               onStatsUpdate={handleStatsUpdate}
+              onSimulationDataUpdate={handleSimulationDataUpdate}
             />
 
             <Legend>
@@ -675,6 +709,15 @@ behavior and performance"
       <SimulationLoggerComponent
         isOpen={isLoggerOpen}
         onToggle={handleToggleLogger}
+      />
+
+      <EvolutionAnalyzer
+        isOpen={isAnalyzerOpen}
+        onToggle={handleToggleAnalyzer}
+        currentStats={stats}
+        creatures={simulationData?.creatures}
+        environment={simulationData?.environment}
+        events={simulationData?.events}
       />
     </Container>
   );

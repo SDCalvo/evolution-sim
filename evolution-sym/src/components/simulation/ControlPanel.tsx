@@ -169,14 +169,14 @@ const StatusLeft = styled.div`
   gap: 0.5rem;
 `;
 
-const StatusIndicator = styled.div<{ isRunning: boolean }>`
+const StatusIndicator = styled.div<{ $isRunning: boolean }>`
   width: 0.75rem;
   height: 0.75rem;
   border-radius: 50%;
-  background: ${(props) => (props.isRunning ? "#10b981" : "#ef4444")};
+  background: ${(props) => (props.$isRunning ? "#10b981" : "#ef4444")};
 
   ${(props) =>
-    props.isRunning &&
+    props.$isRunning &&
     `
     animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
     
@@ -219,12 +219,12 @@ const PerformanceValue = styled.div`
   gap: 0.5rem;
 `;
 
-const PerformanceIndicator = styled.div<{ ups: number }>`
+const PerformanceIndicator = styled.div<{ $ups: number }>`
   width: 0.5rem;
   height: 0.5rem;
   border-radius: 50%;
   background: ${(props) =>
-    props.ups > 25 ? "#10b981" : props.ups > 15 ? "#f59e0b" : "#ef4444"};
+    props.$ups > 25 ? "#10b981" : props.$ups > 15 ? "#f59e0b" : "#ef4444"};
 `;
 
 const PerformanceText = styled.span`
@@ -298,7 +298,7 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
           <StatusCard>
             <StatusRow>
               <StatusLeft>
-                <StatusIndicator isRunning={isRunning} />
+                <StatusIndicator $isRunning={isRunning} />
                 <StatusText>{isRunning ? "Running" : "Paused"}</StatusText>
               </StatusLeft>
               <TickText>Tick #{stats.currentTick}</TickText>
@@ -309,7 +309,7 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
             <PerformanceRow>
               <PerformanceLabel>Performance:</PerformanceLabel>
               <PerformanceValue>
-                <PerformanceIndicator ups={stats.updatesPerSecond} />
+                <PerformanceIndicator $ups={stats.updatesPerSecond} />
                 <PerformanceText>
                   {stats.updatesPerSecond.toFixed(1)} UPS
                 </PerformanceText>

@@ -379,11 +379,9 @@ export class SimpleSimulation {
           : undefined
       ); // Pass undefined instead of empty function for better performance
 
-      // Track behavior changes after update (optimized)
-      if (this.currentTick % 30 === 0) {
-        // Only track every 30 ticks to reduce overhead
-        this.trackCreatureBehavior(creature, beforeStats);
-      }
+      // Track critical behavior changes after update
+      // Always track feeding and reproduction for accurate behavioral analysis
+      this.trackCreatureBehavior(creature, beforeStats);
     });
 
     // Update environment (food spawning, physics, etc.)
@@ -393,6 +391,20 @@ export class SimpleSimulation {
     if (this.currentTick % 5 === 0) {
       // Every 5 ticks instead of every tick
       this.trackSimulationEvents();
+    }
+
+    // Debug: Log overall progress periodically (reduced frequency)
+    if (this.currentTick % 300 === 0) {
+      console.log(
+        `🔍 DEBUG MAIN: Tick ${this.currentTick}, Events: ${this.events.length}, Creatures: ${creatures.length}`
+      );
+      if (this.events.length > 0) {
+        const eventsByType = this.events.reduce((acc, e) => {
+          acc[e.type] = (acc[e.type] || 1) + 1;
+          return acc;
+        }, {} as Record<string, number>);
+        console.log("🔍 DEBUG MAIN: Event types:", eventsByType);
+      }
     }
 
     // Track performance (optimized)
@@ -455,6 +467,21 @@ export class SimpleSimulation {
 
   public getEnvironment(): Environment {
     return this.environment;
+  }
+
+  public getEvents(): SimulationEvent[] {
+    // Debug logging to help diagnose the issue (reduced frequency)
+    if (this.currentTick % 300 === 0 && this.events.length > 0) {
+      console.log(
+        `🔍 DEBUG: Events array has ${this.events.length} events at tick ${this.currentTick}`
+      );
+      const recentEvents = this.events.slice(-5);
+      console.log(
+        "🔍 DEBUG: Recent events:",
+        recentEvents.map((e) => `${e.type}@${e.tick}`).join(", ")
+      );
+    }
+    return this.events;
   }
 
   public reset(): void {
@@ -1227,6 +1254,21 @@ export class SimpleSimulation {
           totalFoodEaten: creature.stats.foodEaten,
         },
       });
+
+      // Debug: Log feeding events (reduced frequency)
+      if (this.currentTick % 200 === 0) {
+        console.log(
+          `🔍 DEBUG: Feeding event recorded for ${creatureId.substring(
+            0,
+            8
+          )} at tick ${this.currentTick}`
+        );
+      }
+
+      // Keep events array manageable (last 2000 events)
+      if (this.events.length > 2000) {
+        this.events = this.events.slice(-2000);
+      }
     }
 
     // Detect reproduction attempts
@@ -1258,6 +1300,23 @@ export class SimpleSimulation {
           },
         });
       }
+    }
+
+    // Track combat (health damage indicates combat occurred)
+    if (creature.physics.health < beforeStats.energy / 2) {
+      // If health is significantly lower than expected, combat likely occurred
+      stats.combat++;
+
+      this.events.push({
+        tick: this.currentTick,
+        type: "combat",
+        creatureId,
+        details: {
+          healthLoss: beforeStats.energy / 2 - creature.physics.health,
+          remainingHealth: creature.physics.health,
+          likelyAttacker: "unknown",
+        },
+      });
     }
 
     // Track movement

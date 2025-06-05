@@ -3,7 +3,7 @@
  * Displays simulation logs with filtering and export features
  */
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import styled from "styled-components";
 import {
   simulationLogger,
@@ -375,22 +375,37 @@ export const SimulationLoggerComponent: React.FC<SimulationLoggerProps> = ({
   const logsEndRef = useRef<HTMLDivElement>(null);
   const logContainerRef = useRef<HTMLDivElement>(null);
 
-  // Subscribe to log updates
+  // Wrap updateLogs in useCallback to prevent infinite loops
+  const updateLogs = useCallback(() => {
+    const currentFilter: LogFilter = {
+      levels: Array.from(selectedLevels),
+      categories: Array.from(selectedCategories),
+      searchTerm: searchTerm || undefined,
+      maxEntries: filter.maxEntries,
+    };
+
+    const filteredLogs = simulationLogger.getLogs(currentFilter);
+    setLogs(filteredLogs);
+  }, [selectedLevels, selectedCategories, searchTerm, filter.maxEntries]);
+
+  // Use ref to prevent dependency issues
+  const updateLogsRef = useRef(updateLogs);
+  updateLogsRef.current = updateLogs;
+
+  // Subscribe to log updates with stable reference
   useEffect(() => {
-    const unsubscribe = simulationLogger.subscribe(() => {
-      updateLogs();
-    });
+    const handleLogUpdate = () => {
+      // Use ref to avoid dependency issues
+      updateLogsRef.current();
+    };
+
+    const unsubscribe = simulationLogger.subscribe(handleLogUpdate);
 
     // Initial load
-    updateLogs();
+    updateLogsRef.current();
 
     return unsubscribe;
-  }, []);
-
-  // Update logs when filters change
-  useEffect(() => {
-    updateLogs();
-  }, [selectedLevels, selectedCategories, searchTerm]);
+  }, []); // Empty dependency array
 
   // Auto-scroll to bottom when new logs arrive, but only if user is near bottom
   useEffect(() => {
@@ -404,18 +419,6 @@ export const SimulationLoggerComponent: React.FC<SimulationLoggerProps> = ({
       }
     }
   }, [logs, autoScroll]);
-
-  const updateLogs = () => {
-    const currentFilter: LogFilter = {
-      levels: Array.from(selectedLevels),
-      categories: Array.from(selectedCategories),
-      searchTerm: searchTerm || undefined,
-      maxEntries: filter.maxEntries,
-    };
-
-    const filteredLogs = simulationLogger.getLogs(currentFilter);
-    setLogs(filteredLogs);
-  };
 
   const toggleLevel = (level: LogLevel) => {
     const newLevels = new Set(selectedLevels);

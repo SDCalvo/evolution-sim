@@ -1,12 +1,14 @@
 "use client";
 
-import React, { useRef, useEffect, useState } from "react";
+import React, { useRef, useEffect, useState, useCallback } from "react";
 import styled from "styled-components";
 import {
   SimpleSimulation,
   SimpleSimulationConfig,
   SimpleSimulationStats,
+  SimulationEvent,
 } from "../../lib/simulation/simpleSimulation";
+import { Environment } from "../../lib/environment/environment";
 import { Creature } from "../../lib/creatures/creature";
 import { CreatureColorSystem } from "../../lib/creatures/creatureTypes";
 
@@ -63,6 +65,11 @@ interface SimulationCanvasProps {
   config: SimpleSimulationConfig;
   isRunning: boolean;
   onStatsUpdate?: (stats: SimpleSimulationStats) => void;
+  onSimulationDataUpdate?: (data: {
+    creatures: Creature[];
+    environment: Environment;
+    events: SimulationEvent[];
+  }) => void;
 }
 
 export const SimulationCanvas: React.FC<SimulationCanvasProps> = ({
@@ -71,12 +78,49 @@ export const SimulationCanvas: React.FC<SimulationCanvasProps> = ({
   config,
   isRunning,
   onStatsUpdate,
+  onSimulationDataUpdate,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const simulationRef = useRef<SimpleSimulation | null>(null);
   const animationFrameRef = useRef<number>();
+  const lastStatsUpdateTimeRef = useRef<number>(0);
+  const lastDataUpdateTimeRef = useRef<number>(0);
 
   const [isInitialized, setIsInitialized] = useState(false);
+
+  // Throttled callback to prevent infinite loops - separate timers for stats and data
+  const throttledStatsUpdate = useCallback(
+    (stats: SimpleSimulationStats) => {
+      const now = Date.now();
+      if (now - lastStatsUpdateTimeRef.current > 250) {
+        // Update max 4 times per second
+        lastStatsUpdateTimeRef.current = now;
+        onStatsUpdate?.(stats);
+      }
+    },
+    [onStatsUpdate]
+  );
+
+  const throttledDataUpdate = useCallback(
+    (data: {
+      creatures: Creature[];
+      environment: Environment;
+      events: SimulationEvent[];
+    }) => {
+      const now = Date.now();
+      if (now - lastDataUpdateTimeRef.current > 250) {
+        // Update max 4 times per second
+        lastDataUpdateTimeRef.current = now;
+        console.log("🔄 SimulationCanvas sending data:", {
+          creaturesCount: data.creatures.length,
+          eventsCount: data.events.length,
+          environmentPresent: !!data.environment,
+        });
+        onSimulationDataUpdate?.(data);
+      }
+    },
+    [onSimulationDataUpdate]
+  );
 
   // Initialize simulation
   useEffect(() => {
@@ -115,10 +159,26 @@ export const SimulationCanvas: React.FC<SimulationCanvasProps> = ({
       const creatures = simulationRef.current.getCreatures();
       const stats = simulationRef.current.getStats();
 
-      // Update parent with stats
-      if (onStatsUpdate) {
-        onStatsUpdate(stats);
+      // Debug logging every 100 ticks
+      if (stats.currentTick % 100 === 0) {
+        console.log("🎮 SimulationCanvas render loop:", {
+          currentTick: stats.currentTick,
+          creaturesCount: creatures.length,
+          isRunning,
+        });
       }
+
+      // Update parent with stats (throttled)
+      throttledStatsUpdate(stats);
+
+      // Update parent with simulation data (throttled)
+      const environment = simulationRef.current.getEnvironment();
+      const events = simulationRef.current.getEvents();
+      throttledDataUpdate({
+        creatures,
+        environment,
+        events,
+      });
 
       // Render the simulation
       renderSimulation(creatures);

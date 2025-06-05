@@ -651,7 +651,7 @@ export class Creature {
     this.physics.position.x += this.physics.velocity.x;
     this.physics.position.y += this.physics.velocity.y;
 
-    // Apply boundary wrapping (creatures appear on opposite side when going out of bounds)
+    // Apply boundary wrapping (creatures wrap around like Pac-Man - no more edge-seeking!)
     this.applyBoundaryWrapping(environment);
 
     // Apply drag
@@ -1183,19 +1183,27 @@ export class Creature {
 
   /**
    * Apply boundary wrapping to keep creatures in world bounds
-   * Creatures bounce off boundaries naturally instead of disappearing
+   * Creatures wrap around to the opposite side (like Pac-Man) - no more edge-seeking!
    */
   private applyBoundaryWrapping(environment?: Environment): void {
     if (!environment || !environment.bounds) {
       // Fallback to basic rectangular bounds if no environment
-      this.physics.position.x = Math.max(
-        10,
-        Math.min(990, this.physics.position.x)
-      );
-      this.physics.position.y = Math.max(
-        10,
-        Math.min(990, this.physics.position.y)
-      );
+      const worldWidth = 1000;
+      const worldHeight = 1000;
+
+      // Wrap around horizontally
+      if (this.physics.position.x < 0) {
+        this.physics.position.x = worldWidth - 1;
+      } else if (this.physics.position.x >= worldWidth) {
+        this.physics.position.x = 1;
+      }
+
+      // Wrap around vertically
+      if (this.physics.position.y < 0) {
+        this.physics.position.y = worldHeight - 1;
+      } else if (this.physics.position.y >= worldHeight) {
+        this.physics.position.y = 1;
+      }
       return;
     }
 
@@ -1206,71 +1214,52 @@ export class Creature {
     const centerX = bounds.centerX ?? worldWidth / 2;
     const centerY = bounds.centerY ?? worldHeight / 2;
 
-    // Handle circular bounds (preferred for simulation)
+    // Handle circular bounds (wraparound on circular boundary)
     if (bounds.shape === "circular" && bounds.radius) {
       const maxRadius = bounds.radius;
       const dx = this.physics.position.x - centerX;
       const dy = this.physics.position.y - centerY;
       const distance = Math.sqrt(dx * dx + dy * dy);
 
-      // If creature is outside the circular boundary, push it back inside
-      if (distance > maxRadius - 10) {
-        // 10px safety margin
+      // If creature is outside the circular boundary, wrap to opposite side
+      if (distance > maxRadius) {
         // Calculate the direction from center to creature
         const angle = Math.atan2(dy, dx);
 
-        // Place creature just inside the boundary
-        const safeRadius = maxRadius - 20; // More buffer space to prevent re-bouncing
-        this.physics.position.x = centerX + Math.cos(angle) * safeRadius;
-        this.physics.position.y = centerY + Math.sin(angle) * safeRadius;
+        // Place creature on the opposite side of the circle
+        const oppositeAngle = angle + Math.PI; // 180 degrees opposite
+        const wrapRadius = maxRadius * 0.8; // Place inside boundary with margin
 
-        // 🔄 IMPROVED BOUNDARY HANDLING: Add randomness to prevent loops
-        const randomAngle = (Math.random() - 0.5) * Math.PI * 0.5; // ±45° randomness
-        const newDirection = angle + Math.PI + randomAngle; // Turn around + randomness
+        this.physics.position.x =
+          centerX + Math.cos(oppositeAngle) * wrapRadius;
+        this.physics.position.y =
+          centerY + Math.sin(oppositeAngle) * wrapRadius;
 
-        // Set new velocity in random direction away from boundary
-        const speed = Math.sqrt(
-          this.physics.velocity.x ** 2 + this.physics.velocity.y ** 2
-        );
-        this.physics.velocity.x = Math.cos(newDirection) * speed * 0.8; // 80% speed retention
-        this.physics.velocity.y = Math.sin(newDirection) * speed * 0.8;
-
-        // Update rotation to match new direction
-        this.physics.rotation = newDirection;
+        // Keep velocity direction unchanged - no bouncing!
+        // This maintains the creature's intended movement direction
       }
     } else {
-      // Handle rectangular bounds as fallback
-      const margin = 10;
-      const leftBound = margin;
-      const rightBound = worldWidth - margin;
-      const topBound = margin;
-      const bottomBound = worldHeight - margin;
+      // Handle rectangular bounds (Pac-Man style wraparound)
+      const leftBound = 0;
+      const rightBound = worldWidth;
+      const topBound = 0;
+      const bottomBound = worldHeight;
 
-      // Clamp position to bounds with anti-loop measures
+      // Wrap around horizontally
       if (this.physics.position.x < leftBound) {
-        this.physics.position.x = leftBound + 5; // Small buffer
-        // Add randomness to prevent straight-line bouncing
-        const randomY = (Math.random() - 0.5) * 2; // Random Y component
-        this.physics.velocity.x = Math.abs(this.physics.velocity.x) * 0.6; // Bounce right (reduced)
-        this.physics.velocity.y += randomY; // Add random Y movement
-      } else if (this.physics.position.x > rightBound) {
-        this.physics.position.x = rightBound - 5; // Small buffer
-        const randomY = (Math.random() - 0.5) * 2; // Random Y component
-        this.physics.velocity.x = -Math.abs(this.physics.velocity.x) * 0.6; // Bounce left (reduced)
-        this.physics.velocity.y += randomY; // Add random Y movement
+        this.physics.position.x = rightBound - 1; // Appear on right side
+      } else if (this.physics.position.x >= rightBound) {
+        this.physics.position.x = leftBound + 1; // Appear on left side
       }
 
+      // Wrap around vertically
       if (this.physics.position.y < topBound) {
-        this.physics.position.y = topBound + 5; // Small buffer
-        const randomX = (Math.random() - 0.5) * 2; // Random X component
-        this.physics.velocity.y = Math.abs(this.physics.velocity.y) * 0.6; // Bounce down (reduced)
-        this.physics.velocity.x += randomX; // Add random X movement
-      } else if (this.physics.position.y > bottomBound) {
-        this.physics.position.y = bottomBound - 5; // Small buffer
-        const randomX = (Math.random() - 0.5) * 2; // Random X component
-        this.physics.velocity.y = -Math.abs(this.physics.velocity.y) * 0.6; // Bounce up (reduced)
-        this.physics.velocity.x += randomX; // Add random X movement
+        this.physics.position.y = bottomBound - 1; // Appear on bottom
+      } else if (this.physics.position.y >= bottomBound) {
+        this.physics.position.y = topBound + 1; // Appear on top
       }
+
+      // No velocity changes - creatures maintain their direction and speed!
     }
   }
 
